@@ -62,12 +62,12 @@
 
 
 (defvar ertn-temp-test-buffer-test nil)
-(make-variable-buffer-local 'ert-temp-test-buffer-test)
-(put 'ert-temp-test-buffer-test 'permanent-local t)
+(make-variable-buffer-local 'ertn-temp-test-buffer-test)
+(put 'ertn-temp-test-buffer-test 'permanent-local t)
 
 (defvar ertn-temp-test-buffer-file nil)
-(make-variable-buffer-local 'ert-temp-test-buffer-file)
-(put 'ert-temp-test-buffer-file 'permanent-local t)
+(make-variable-buffer-local 'ertn-temp-test-buffer-file)
+(put 'ertn-temp-test-buffer-file 'permanent-local t)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Test buffers
@@ -108,8 +108,8 @@
 (defvar ertn-temp-test-buffer-minor-mode-map
   (let ((map (make-sparse-keymap)))
     ;; Add menu bar entries for test buffer and test function
-    (define-key map [(control ?c) ?? ?t] 'ert-temp-test-buffer-go-test)
-    (define-key map [(control ?c) ?? ?f] 'ert-temp-test-buffer-go-file)
+    (define-key map [(control ?c) ?? ?t] 'ertn-temp-test-buffer-go-test)
+    (define-key map [(control ?c) ?? ?f] 'ertn-temp-test-buffer-go-file)
     map))
 (defun ertn-temp-test-buffer-go-test ()
   (interactive)
@@ -121,7 +121,7 @@
 (define-minor-mode ertn-temp-test-buffer-minor-mode
   "Helpers for those buffers ..."
   )
-(put 'ert-temp-test-buffer-minor-mode 'permanent-local t)
+(put 'ertn-temp-test-buffer-minor-mode 'permanent-local t)
 
 ;; Fix-me: doc
 (defvar ertn-test-files-root nil)
@@ -137,8 +137,8 @@
 If success then delete the temporary buffer, otherwise keep it.
 
 To access these temporary test buffers use
-- `ert-list-temp-test-buffers': list them
-- `ert-kill-temp-test-buffers': delete them"
+- `ertn-list-temp-test-buffers': list them
+- `ertn-kill-temp-test-buffers': delete them"
   (declare (indent 1) (debug t))
   (let ((file-name (make-symbol "file-name-")))
     `(let* ((,file-name (ertn-get-test-file-name ,file-name-form))
@@ -180,7 +180,7 @@ To access these temporary test buffers use
 (defvar ertn-simulate-command-delay nil)
 
 (defvar ertn-simulate-command-post-hook nil
-  "Normal hook to be run at end of `ert-simulate-command'.")
+  "Normal hook to be run at end of `ertn-simulate-command'.")
 
 ;; Fix-me: use this in all tests where applicable.
 (defun ertn-simulate-command (command run-idle-timers)
@@ -200,7 +200,7 @@ Return the value of calling the command, ie
 
   (apply (car COMMAND) (cdr COMMAND)).
 
-Run the hook `ert-simulate-command-post-hook' at the very end."
+Run the hook `ertn-simulate-command-post-hook' at the very end."
 
   (message "command=%s" command)
   (ertn-should (listp command))
@@ -230,7 +230,7 @@ Run the hook `ert-simulate-command-post-hook' at the very end."
     (setq last-repeatable-command real-last-command)
     (setq last-command this-command)
     (when (and deactivate-mark transient-mark-mode) (deactivate-mark))
-    ;;(message "ert-simulate-command.before idle-timers, point=%s" (point))
+    ;;(message "ertn-simulate-command.before idle-timers, point=%s" (point))
     (when run-idle-timers
       ;;(dolist (timer (copy-list timer-idle-list))
       (dolist (timer (copy-sequence timer-idle-list))
@@ -238,7 +238,7 @@ Run the hook `ert-simulate-command-post-hook' at the very end."
         ;;(message "   after timer=%s, point=%s" timer (point))
         )
       (redisplay t))
-    ;;(message "ert-simulate-command.after  idle-timers, point=%s" (point))
+    ;;(message "ertn-simulate-command.after  idle-timers, point=%s" (point))
     (when ertn-simulate-command-delay
       ;; Show user
       ;;(message "After M-x %s" command)
@@ -249,7 +249,7 @@ Run the hook `ert-simulate-command-post-hook' at the very end."
         (sit-for ertn-simulate-command-delay)
         (rename-buffer old-buffer-name)))
     (ertn-should (not unread-command-events))
-    (run-hooks 'ert-simulate-command-post-hook)
+    (run-hooks 'ertn-simulate-command-post-hook)
     return-value))
 
 (defun ertn-simulate-self-insert (char)
@@ -261,7 +261,7 @@ Run the hook `ert-simulate-command-post-hook' at the very end."
 ;;; Misc
 
 (defun ertn-this-test ()
-  "Return current `ert-deftest' function."
+  "Return current `ertn-deftest' function."
   (elt test 1))
 
 

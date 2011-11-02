@@ -34,13 +34,13 @@
 ;; reporting the results as well as for debugging test failures
 ;; interactively.
 ;;
-;; The main entry points are `ert-deftest', which is similar to
-;; `defun' but defines a test, and `ert-run-tests-interactively',
+;; The main entry points are `ertn-deftest', which is similar to
+;; `defun' but defines a test, and `ertn-run-tests-interactively',
 ;; which runs tests and offers an interactive interface for inspecting
-;; results and debugging.  There is also `ert-run-tests-batch' for
+;; results and debugging.  There is also `ertn-run-tests-batch' for
 ;; non-interactive use.
 ;;
-;; The body of `ert-deftest' forms resembles a function body, but the
+;; The body of `ertn-deftest' forms resembles a function body, but the
 ;; additional operators `should', `should-not' and `should-error' are
 ;; available.  `should' is similar to cl's `assert', but signals a
 ;; different error when its condition is violated that is caught and
@@ -87,13 +87,13 @@
 
 ;; Test selectors
 ;;
-;; Functions like `ert-run-tests-interactively' accept a test
+;; Functions like `ertn-run-tests-interactively' accept a test
 ;; selector, which is a Lisp expression specifying a set of tests.
 ;; Each test name is a selector that refers to that test, the selector
 ;; `t' refers to all tests, and the selector `:failed' refers to all
 ;; tests that failed; but more complex selectors are available.  Test
 ;; selector syntax is similar to cl's type specifier syntax.  See the
-;; docstring of `ert-select-tests' for details.
+;; docstring of `ertn-select-tests' for details.
 
 
 ;; Comparison with other testing tools
@@ -146,7 +146,7 @@
 ;; particular module.  Since symbol prefixes are the usual way of
 ;; separating module namespaces in Emacs Lisp, test selectors already
 ;; solve this by allowing regexp matching on test names; e.g., the
-;; selector "^ert-" selects ERT's self-tests.
+;; selector "^ertn-" selects ERT's self-tests.
 ;;
 ;; If test suites containing arbitrary sets of tests are found to be
 ;; desirable, it would be easy to add a `define-test-selector'
@@ -182,27 +182,27 @@
   (documentation nil)
   (body (assert nil))
   (most-recent-result nil)
-  (expected-result-type 'ert-test-passed))
+  (expected-result-type 'ertn-test-passed))
 
 (defun ertn-test-boundp (symbol)
   "Return non-nil if SYMBOL names a test."
-  (and (get symbol 'ert-test) t))
+  (and (get symbol 'ertn-test) t))
 
 (defun ertn-get-test (symbol)
   "If SYMBOL names a test, return that.  Signal an error otherwise."
   (assert (ertn-test-boundp symbol) t)
-  (get symbol 'ert-test))
+  (get symbol 'ertn-test))
 
 (defun ertn-set-test (symbol doc definition)
   "Make SYMBOL name the test DEFINITION, and return DEFINITION."
   (when doc
-    (put symbol 'ert-test-documentation doc))
-  (put symbol 'ert-test definition)
+    (put symbol 'ertn-test-documentation doc))
+  (put symbol 'ertn-test definition)
   definition)
 
 (defun ertn-make-test-unbound (symbol)
   "Make SYMBOL name no test.  Return SYMBOL."
-  (remprop symbol 'ert-test)
+  (remprop symbol 'ertn-test)
   symbol)
 
 (defun ertn-test-result-expected-p (test result)
@@ -274,32 +274,32 @@ and the body."
        ;; Guard against missing/badly named tests:
        (when (and ertn-error-on-test-redefinition
                   (symbolp ',name)
-                  (get ',name 'ert-test))
+                  (get ',name 'ertn-test))
          (with-output-to-temp-buffer "*Ert Error*"
            (with-current-buffer "*Ert Error*"
              (insert "Test "
                      (format "%s" ',name)
                      " is already defined in "
-                     (format "%s" (find-definition-noselect ',name 'ert-deftest))
+                     (format "%s" (find-definition-noselect ',name 'ertn-deftest))
                      "\n\n"
-                     "Tip: Use `ert-delete-all-tests' or `ert-delete-test' before redefining tests."
+                     "Tip: Use `ertn-delete-all-tests' or `ertn-delete-test' before redefining tests."
                      )))
          (if (y-or-n-p "Do you want to call ertn-delete-all-tests and then continue? ")
              ;; Fix-me: This does not work, why?
              (ertn-delete-all-tests)
            (error "Test %s is already defined in %s"
                   ',name
-                  (find-definition-noselect ',name 'ert-deftest))))
+                  (find-definition-noselect ',name 'ertn-deftest))))
        (ertn-set-test ',name
                      nil ;;doc
-                     (make-ert-test
+                     (make-ertn-test
                       :name ',name
                       :body (lambda () ,@body)
                       ,@(when expected-result-supplied-p
                           `(:expected-result-type ,expected-result))
                       ,@(when documentation-supplied-p
                           `(:documentation ,documentation))))
-       ;; This hack allows `symbol-file' to associate `ert-deftest'
+       ;; This hack allows `symbol-file' to associate `ertn-deftest'
        ;; forms with files, and therefore enables `find-function' to
        ;; work with tests.  However, it leads to warnings in
        ;; `unload-feature', which doesn't know how to undefine tests
@@ -311,16 +311,16 @@ and the body."
   "Read the name of a test and return it as a symbol.
 Prompt with PROMPT.  By default, return DEFAULT-VALUE."
   (when (symbolp default-value) (setq default-value (symbol-name default-value)))
-  (intern (completing-read prompt obarray #'ert-test-boundp
+  (intern (completing-read prompt obarray #'ertn-test-boundp
                            t nil history default-value nil)))
 
 (defun ertn-find-test-other-window (test-name)
   "Find, in another window, the definition of TEST-NAME."
   (interactive (list (ertn-read-test-name "Find test definition: ")))
-  (find-function-do-it test-name 'ert-deftest 'switch-to-buffer-other-window))
+  (find-function-do-it test-name 'ertn-deftest 'switch-to-buffer-other-window))
 
 (defun ertn-delete-test (test-name)
-  "An interactive interface to `ert-make-test-unbound'."
+  "An interactive interface to `ertn-make-test-unbound'."
   (interactive (list (let ((default (thing-at-point 'symbol)))
                        (when default
                          (set-text-properties 0 (length default) nil default)
@@ -332,7 +332,7 @@ Prompt with PROMPT.  By default, return DEFAULT-VALUE."
                                             "Delete test: "
                                           (format "Delete test (default %s): "
                                                   default))
-                                        obarray #'ert-test-boundp
+                                        obarray #'ertn-test-boundp
                                         'really-require-match
                                         nil nil default nil))))
   (ertn-make-test-unbound test-name))
@@ -343,7 +343,7 @@ Prompt with PROMPT.  By default, return DEFAULT-VALUE."
   (when (interactive-p)
     (unless (y-or-n-p "Delete all tests? ")
       (error "Aborted")))
-  (mapc #'ert-delete-test (mapcar #'ert-test-name (ertn-select-tests t t)))
+  (mapc #'ertn-delete-test (mapcar #'ertn-test-name (ertn-select-tests t t)))
   t)
 
 
@@ -355,8 +355,8 @@ return nil.
 The buffer must exist if MUST-EXIST is non-nil.
 
 See also:
- `ert-end-of-messages'
- `ert-end-of-warnings'"
+ `ertn-end-of-messages'
+ `ertn-end-of-warnings'"
   (let ((buf (if must-exist
                  (get-buffer buffer)
                (get-buffer-create buffer))))
@@ -379,12 +379,12 @@ See also:
 (defun ertn-search-after (after regexp)
   "Search after marker in AFTER for regular expression REGEXP.
 Return a alist of position and matches.  AFTER should have been
-created with `ert-make-end-marker'.
+created with `ertn-make-end-marker'.
 
 This is supposed to be used for messages and trace buffers.
 
 See also
- `ert-get-messages'"
+ `ertn-get-messages'"
   (let ((buf (marker-buffer after)))
     (with-current-buffer buf
       (let ((here (point))
@@ -396,24 +396,24 @@ See also
         (goto-char here)
         (reverse res)))))
 ;; fix-me: add a conventient way to look at the result of
-;; `ert-search-after'. Probably this means adding something more to
+;; `ertn-search-after'. Probably this means adding something more to
 ;; the returned result.
 
 (defvar ertn-messages-mark)
 (defun ertn-get-messages (regexp)
   "Search *Messages* buffer for regular expression REGEXP.
-This should be used within `ert-deftest'.  Search begins where
+This should be used within `ertn-deftest'.  Search begins where
 the buffer ended when test started.
 
 See also:
- `ert-get-warnings'
- `ert-search-after'"
+ `ertn-get-warnings'
+ `ertn-search-after'"
   (ertn-search-after ertn-messages-mark regexp))
 
 (defvar ertn-warnings-mark)
 (defun ertn-get-warnings (regexp)
   "Search *Warnings* buffer for regular expression REGEXP.
-See `ert-get-messages' for more information."
+See `ertn-get-messages' for more information."
   (ertn-search-after ertn-warnings-mark regexp))
 
 
@@ -450,7 +450,7 @@ Selectors that do not, such as \(member ...\), just return the
 set implied by them without checking whether it is really
 contained in UNIVERSE."
   ;; This code needs to match the etypecase in
-  ;; `ert-insert-human-readable-selector'.
+  ;; `ertn-insert-human-readable-selector'.
   (etypecase selector
     ((member nil) nil)
     ((member t) (etypecase universe
@@ -464,17 +464,17 @@ contained in UNIVERSE."
     ((member :failed) (ertn-select-tests
                        `(satisfies ,(lambda (test)
                                       (typep (ertn-test-most-recent-result test)
-                                             'ert-test-failed)))
+                                             'ertn-test-failed)))
                        universe))
     ((member :passed) (ertn-select-tests
                        `(satisfies ,(lambda (test)
                                       (typep (ertn-test-most-recent-result test)
-                                             'ert-test-passed)))
+                                             'ertn-test-passed)))
                        universe))
     ((member :error) (ertn-select-tests
                       `(satisfies ,(lambda (test)
                                      (typep (ertn-test-most-recent-result test)
-                                            'ert-test-error)))
+                                            'ertn-test-error)))
                       universe))
     ((member :expected) (ertn-select-tests
                          `(satisfies
@@ -486,8 +486,8 @@ contained in UNIVERSE."
     ((member :unexpected) (ertn-select-tests `(not :expected) universe))
     (string
      (etypecase universe
-       ((member t) (mapcar #'ert-get-test
-                           (apropos-internal selector #'ert-test-boundp)))
+       ((member t) (mapcar #'ertn-get-test
+                           (apropos-internal selector #'ertn-test-boundp)))
        (list (remove-if-not (lambda (test)
                               (and (ertn-test-name test)
                                    (string-match selector (ertn-test-name test))))
@@ -536,7 +536,7 @@ contained in UNIVERSE."
   ;; `most-recent-result' slots of test case objects in (eql ...) or
   ;; (member ...) selectors.
   (labels ((rec (selector)
-             ;; This code needs to match the etypecase in `ert-select-tests'.
+             ;; This code needs to match the etypecase in `ertn-select-tests'.
              (etypecase selector
                ((or (member nil t
                             :new :failed :passed :error
@@ -560,17 +560,17 @@ contained in UNIVERSE."
 
 ;;; Running tests.
 
-(put 'ert-test-failed 'error-conditions '(error ertn-test-failed))
-(put 'ert-test-failed 'error-message "Test failed")
+(put 'ertn-test-failed 'error-conditions '(error ertn-test-failed))
+(put 'ertn-test-failed 'error-message "Test failed")
 
 (defun ertn-pass ()
   "Terminate the current test and mark it passed.  Does not return."
-  (throw 'ert-pass nil))
+  (throw 'ertn-pass nil))
 
 (defun ertn-fail (data)
   "Terminate the current test and mark it failed.  Does not return.
 DATA is displayed to the user and should state the reason of the failure."
-  (signal 'ert-test-failed (list data)))
+  (signal 'ertn-test-failed (list data)))
 
 ;; The data structures that represent the result of running a test.
 (defstruct ertn-test-result
@@ -593,8 +593,8 @@ DATA is displayed to the user and should state the reason of the failure."
   ;; (`print-level' and `print-length') in place.  For interactive
   ;; use, the cost of ensuring this possibly outweighs the advantage
   ;; of storing the backtrace for
-  ;; `ert-results-pop-to-backtrace-for-test-at-point' given that we
-  ;; already have `ert-results-rerun-test-debugging-errors-at-point'.
+  ;; `ertn-results-pop-to-backtrace-for-test-at-point' given that we
+  ;; already have `ertn-results-rerun-test-debugging-errors-at-point'.
   ;; For batch use, however, printing the backtrace may be useful.
   (loop
    ;; 6 is the number of frames our own debugger adds (when
@@ -616,7 +616,7 @@ DATA is displayed to the user and should state the reason of the failure."
   (exit-continuation (assert nil))
   ;; The binding of `debugger' outside of the execution of the test.
   next-debugger
-  ;; The binding of `ert-debug-on-error' that is in effect for the
+  ;; The binding of `ertn-debug-on-error' that is in effect for the
   ;; execution of the current test.  We store it to avoid being
   ;; affected by any new bindings the test itself may establish.  (I
   ;; don't remember whether this feature is important.)
@@ -641,13 +641,13 @@ silently or calls the interactive debugger, as appropriate."
          (setf (ertn-test-execution-info-result info)
                (ecase type
                  (quit
-                  (make-ert-test-quit :condition condition
+                  (make-ertn-test-quit :condition condition
                                       :backtrace backtrace))
                  (failed
-                  (make-ert-test-failed :condition condition
+                  (make-ertn-test-failed :condition condition
                                         :backtrace backtrace))
                  (error
-                  (make-ert-test-error :condition condition
+                  (make-ertn-test-error :condition condition
                                        :backtrace backtrace))))
          ;; Work around Emacs' heuristic (in eval.c) for detecting
          ;; errors in the debugger.
@@ -655,7 +655,7 @@ silently or calls the interactive debugger, as appropriate."
          ;; FIXME: We should probably implement more fine-grained
          ;; control a la non-t `debug-on-error' here.
          (cond
-          ((ertn-test-execution-info-ert-debug-on-error info)
+          ((ertn-test-execution-info-ertn-debug-on-error info)
            (apply (ertn-test-execution-info-next-debugger info) debugger-args))
           (t))
          (funcall (ertn-test-execution-info-exit-continuation info)))))))
@@ -663,8 +663,8 @@ silently or calls the interactive debugger, as appropriate."
 (defun ertn-run-test-internal (ertn-test-execution-info)
   (lexical-let ((info ertn-test-execution-info))
     (setf (ertn-test-execution-info-next-debugger info) debugger
-          (ertn-test-execution-info-ert-debug-on-error info) ertn-debug-on-error)
-    (catch 'ert-pass
+          (ertn-test-execution-info-ertn-debug-on-error info) ertn-debug-on-error)
+    (catch 'ertn-pass
       ;; For now, each test gets its own temp buffer and its own
       ;; window excursion, just to be safe.  If this turns out to be
       ;; too expensive, we can remove it.
@@ -675,13 +675,13 @@ silently or calls the interactive debugger, as appropriate."
                 (debug-on-error t)
                 (debug-on-quit t)
                 ;; FIXME: Do we need to store the old binding of this
-                ;; and consider it in `ert-run-test-debugger'?
+                ;; and consider it in `ertn-run-test-debugger'?
                 (debug-ignored-errors nil)
                 (ertn-messages-mark (ertn-end-of-messages))
                 (ertn-warnings-mark (ertn-end-of-warnings)))
             (funcall (ertn-test-body (ertn-test-execution-info-test info))))))
       (ertn-pass))
-    (setf (ertn-test-execution-info-result info) (make-ert-test-passed)))
+    (setf (ertn-test-execution-info-result info) (make-ertn-test-passed)))
   nil)
 
 (defun ertn-make-marker-in-messages-buffer ()
@@ -710,9 +710,9 @@ silently or calls the interactive debugger, as appropriate."
   (setf (ertn-test-most-recent-result test) nil)
   (block error
     (lexical-let* ((begin-marker (ertn-make-marker-in-messages-buffer))
-                   (info (make-ert-test-execution-info
+                   (info (make-ertn-test-execution-info
                          :test test
-                         :result (make-ert-test-aborted-with-non-local-exit)
+                         :result (make-ertn-test-aborted-with-non-local-exit)
                          :exit-continuation (lambda ()
                                               (return-from error nil)))))
       (unwind-protect
@@ -751,7 +751,7 @@ the particular variant of `should'."
         (funcall inner-expander form `(list ',whole :form ',form :value ,form)))
        ((ertn-special-operator-p (car form))
         (let ((value (gensym "value-")))
-          `(let ((,value (make-symbol "ert-form-evaluation-aborted")))
+          `(let ((,value (make-symbol "ertn-form-evaluation-aborted")))
              ,(funcall inner-expander
                        `(setq ,value ,form)
                        `(list ',whole :form ',form :value ,value))
@@ -766,7 +766,7 @@ the particular variant of `should'."
           (let ((fn (gensym "fn-"))
                 (args (gensym "args-"))
                 (value (gensym "value-"))
-                (default-value (gensym "ert-form-evaluation-aborted-")))
+                (default-value (gensym "ertn-form-evaluation-aborted-")))
             `(let ((,fn (function ,fn-name))
                    (,args (list ,@arg-forms)))
                (let ((,value ',default-value))
@@ -779,7 +779,7 @@ the particular variant of `should'."
                                    (let ((-explainer-
                                           (and (symbolp ',fn-name)
                                                (get ',fn-name
-                                                    'ert-explainer))))
+                                                    'ertn-explainer))))
                                      (when -explainer-
                                        (list :explanation
                                              (apply -explainer- ,args))))))
@@ -848,7 +848,7 @@ names.  If EXCLUDE-SUBTYPES is nil, the error matches TYPE if one
 of its condition names is an element of TYPE.  If
 EXCLUDE-SUBTYPES is non-nil, the error matches TYPE if it is an
 element of TYPE.  TEST should be a predicate."
-  ;; Returns a gensym named `ert-form-evaluation-aborted-XXX', but
+  ;; Returns a gensym named `ertn-form-evaluation-aborted-XXX', but
   ;; that's a wart, so let's not document it.
   (unless type (setq type ''error))
   (unless test (setq test '(lambda (condition) t)))
@@ -869,7 +869,7 @@ element of TYPE.  TEST should be a predicate."
                                             -condition-
                                             ,type ,exclude-subtypes ,test)
              ;; It would make sense to have the `should-error' form
-             ;; return the error in this case, but `ert-expand-should'
+             ;; return the error in this case, but `ertn-expand-should'
              ;; doesn't allow that at the moment.
              ))
           (unless ,errorp
@@ -933,7 +933,7 @@ Returns nil if they are equal."
       (atom (if (not (equal a b))
                 `(different-atoms ,a ,b)
               nil)))))
-(put 'equal 'ert-explainer 'ert-explain-not-equal)
+(put 'equal 'ertn-explainer 'ertn-explain-not-equal)
 
 
 ;;; Results display.
@@ -1006,7 +1006,7 @@ Returns nil if they are equal."
 ;; The test result listener that updates the buffer when tests are run.
 (defvar ertn-results-listener)
 
-;; The same as `ert-results-stats', but dynamically bound.  Used for
+;; The same as `ertn-results-stats', but dynamically bound.  Used for
 ;; the mode line progress indicator.
 (defvar ertn-current-run-stats nil)
 
@@ -1016,13 +1016,13 @@ Returns nil if they are equal."
 
 (defun ertn-insert-test-name-button (test-name)
   (insert-text-button (format "%S" test-name)
-                      :type 'ert-test-name-button
-                      'ert-test-name test-name))
+                      :type 'ertn-test-name-button
+                      'ertn-test-name test-name))
 
 (defun ertn-results-update-ewoc-hf (ewoc stats)
   "Update the header and footer of EWOC to show certain information from STATS.
 
-Also sets `ert-results-progress-bar-button-begin'."
+Also sets `ertn-results-progress-bar-button-begin'."
   (let ((run-count (+ (ertn-stats-passed-expected stats)
                       (ertn-stats-passed-unexpected stats)
                       (ertn-stats-failed-expected stats)
@@ -1098,9 +1098,9 @@ Also sets `ert-results-progress-bar-button-begin'."
                                     ertn-results-progress-bar-string)))
          (let ((progress-bar-button-begin
                 (insert-text-button (substring progress-bar-string 0 run-count)
-                                    :type 'ert-results-progress-bar-button)))
+                                    :type 'ertn-results-progress-bar-button)))
            (with-current-buffer results-buffer
-             (set (make-local-variable 'ert-results-progress-bar-button-begin)
+             (set (make-local-variable 'ertn-results-progress-bar-button-begin)
                   progress-bar-button-begin)))
          (insert (substring progress-bar-string run-count)))
        (insert "\n\n")
@@ -1183,7 +1183,7 @@ Ensures a final newline is inserted."
                                         result
                                         (ertn-test-result-expected-p test
                                                                     result)))
-                               :type 'ert-results-expand-collapse-button)
+                               :type 'ertn-results-expand-collapse-button)
            (insert " ")
            (ertn-insert-test-name-button (ertn-test-name test))
            (insert "\n")
@@ -1223,13 +1223,13 @@ Ensures a final newline is inserted."
         (buffer-disable-undo)
         (erase-buffer)
         (ertn-results-mode)
-        (set (make-local-variable 'ert-results-ewoc)
-             (ewoc-create 'ert-print-test-for-ewoc nil nil t))
-        (set (make-local-variable 'ert-results-stats) stats)
-        (set (make-local-variable 'ert-results-progress-bar-string)
+        (set (make-local-variable 'ertn-results-ewoc)
+             (ewoc-create 'ertn-print-test-for-ewoc nil nil t))
+        (set (make-local-variable 'ertn-results-stats) stats)
+        (set (make-local-variable 'ertn-results-progress-bar-string)
              (make-string (ertn-stats-total stats)
                           (ertn-char-for-test-result nil t)))
-        (set (make-local-variable 'ert-results-listener) listener)
+        (set (make-local-variable 'ertn-results-listener) listener)
         (ertn-results-update-ewoc-hf ertn-results-ewoc ertn-results-stats)
         (goto-char (1- (point-max)))
         buffer))))
@@ -1295,7 +1295,7 @@ Ensures a final newline is inserted."
                       (assert (not (gethash key map)))
                       (setf (gethash key map) i))
                 map))
-         (stats (make-ert-stats :selector selector
+         (stats (make-ertn-stats :selector selector
                                 :tests tests
                                 :test-map map
                                 :test-results (make-vector (length tests) nil)
@@ -1332,7 +1332,7 @@ The user can use TAB to see which tests match."
   (let* ((all-tests
           (mapcar (lambda (rec) (format "%s" (elt rec 1)))
                   (ertn-select-tests "" t))
-          ;;'("ert-group1-1" "ert-group1-2" "ert-other")
+          ;;'("ertn-group1-1" "ertn-group1-2" "ertn-other")
           )
          regexp
          ret
@@ -1377,7 +1377,7 @@ The user can use TAB to see which tests match."
                nil ;; initial-contents
                mini-map ;; keymap
                nil ;; read
-               'ert-selector-history
+               'ertn-selector-history
                default nil))))
     (setq ret regexp)
     (when (string= "t" ret)
@@ -1398,10 +1398,10 @@ The user can use TAB to see which tests match."
 ;;;            (read-from-minibuffer (if (null default)
 ;;;                                      "Run tests: "
 ;;;                                    (format "Run tests (default %s): " default))
-;;;                                  ;;nil nil t 'ert-selector-history
+;;;                                  ;;nil nil t 'ertn-selector-history
 ;;;                                  ;;
 ;;;                                  ;; fix-me: seems like I am misunderstanding Christians intent here.
-;;;                                  nil nil nil 'ert-selector-history
+;;;                                  nil nil nil 'ertn-selector-history
 ;;;                                  default nil))
 ;;;          nil nil))
    (list (ertn-read-test-selector)
@@ -1453,7 +1453,7 @@ The user can use TAB to see which tests match."
                                t)
                        (setq node (ewoc-enter-last
                                    ewoc
-                                   (make-ert-ewoc-entry :test test
+                                   (make-ertn-ewoc-entry :test test
                                                         :hidden-p t))))
                      (setf (ertn-ewoc-entry-test (ewoc-data node)) test)
                      (setf (ertn-ewoc-entry-result (ewoc-data node)) nil)
@@ -1482,7 +1482,7 @@ The user can use TAB to see which tests match."
      listener)))
 
 (defvar ertn-batch-backtrace-right-margin 70
-  "*The maximum line length for printing backtraces in `ert-run-tests-batch'.")
+  "*The maximum line length for printing backtraces in `ertn-run-tests-batch'.")
 
 (defun ertn-run-tests-batch (selector)
   "Run the tests specified by SELECTOR, printing results to the terminal.
@@ -1570,7 +1570,7 @@ Returns the stats object."
 
 ;;; Commands and button actions for the results buffer.
 
-(define-derived-mode ertn-results-mode fundamental-mode "ERT-Results"
+(define-derived-mode ertn-results-mode fundamental-mode "ERTN-Results"
   "Major mode for viewing results of ERT test runs.")
 
 (loop for (key binding) in
@@ -1588,16 +1588,16 @@ Returns the stats object."
       do
       (define-key ertn-results-mode-map key binding))
 
-(define-button-type 'ert-results-progress-bar-button
-  'action #'ert-results-progress-bar-button-action
+(define-button-type 'ertn-results-progress-bar-button
+  'action #'ertn-results-progress-bar-button-action
   'help-echo "mouse-2, RET: Reveal test result")
 
-(define-button-type 'ert-test-name-button
-  'action #'ert-test-name-button-action
+(define-button-type 'ertn-test-name-button
+  'action #'ertn-test-name-button-action
   'help-echo "mouse-2, RET: Find test definition")
 
-(define-button-type 'ert-results-expand-collapse-button
-  'action #'ert-results-expand-collapse-button-action
+(define-button-type 'ertn-results-expand-collapse-button
+  'action #'ertn-results-expand-collapse-button-action
   'help-echo "mouse-2, RET: Expand/collapse test result")
 
 (defun ertn-results-test-node-or-null-at-point ()
@@ -1645,7 +1645,7 @@ To be used in the ERT results buffer."
 
 (defun ertn-test-name-button-action (button)
   "Find the definition of the test BUTTON belongs to, in another window."
-  (let ((name (button-get button 'ert-test-name)))
+  (let ((name (button-get button 'ertn-test-name)))
     (ertn-find-test-other-window name)))
 
 (defun ertn-ewoc-position (ewoc node)
@@ -1740,7 +1740,7 @@ To be used in the ERT results buffer."
         (goto-char point)))))
 
 (defun ertn-results-rerun-test-at-point-debugging-errors ()
-  "Re-run the test at point with `ert-debug-on-error' bound to t.
+  "Re-run the test at point with `ertn-debug-on-error' bound to t.
 
 To be used in the ERT results buffer."
   (interactive)
@@ -1837,7 +1837,7 @@ To be used in the ERT results buffer."
 (defun ertn-activate-font-lock-keywords ()
   (font-lock-add-keywords
    nil
-   '(("(\\(\\<ert-deftest\\)\\>\\s *\\(\\sw+\\)?"
+   '(("(\\(\\<ertn-deftest\\)\\>\\s *\\(\\sw+\\)?"
       (1 font-lock-keyword-face nil t)
       (2 font-lock-function-name-face nil t)))))
 
@@ -1860,16 +1860,16 @@ This is an inverse of `add-to-list'."
 (add-to-list 'minor-mode-alist '(ertn-current-run-stats
                                  (:eval
                                   (ertn-tests-running-mode-line-indicator))))
-(add-to-list 'emacs-lisp-mode-hook 'ert-activate-font-lock-keywords)
+(add-to-list 'emacs-lisp-mode-hook 'ertn-activate-font-lock-keywords)
 
 (defun ertn-unload-function ()
-  (ertn-remove-from-list 'find-function-regexp-alist 'ert-deftest :key #'car)
-  (ertn-remove-from-list 'minor-mode-alist 'ert-current-run-stats :key #'car)
-  (ertn-remove-from-list 'emacs-lisp-mode-hook 'ert-activate-font-lock-keywords)
+  (ertn-remove-from-list 'find-function-regexp-alist 'ertn-deftest :key #'car)
+  (ertn-remove-from-list 'minor-mode-alist 'ertn-current-run-stats :key #'car)
+  (ertn-remove-from-list 'emacs-lisp-mode-hook 'ertn-activate-font-lock-keywords)
   nil)
 
 (defvar ertn-unload-hook '())
-(add-hook 'ert-unload-hook 'ert-unload-function)
+(add-hook 'ertn-unload-hook 'ertn-unload-function)
 
 
 ;;; Self-tests.
@@ -1885,7 +1885,7 @@ This is an inverse of `add-to-list'."
 ;; Test that nested test bodies run.
 (ertn-deftest ertn-nested-test-body-runs ()
   (lexical-let ((was-run nil))
-    (let ((test (make-ert-test :body (lambda ()
+    (let ((test (make-ertn-test :body (lambda ()
                                        (setq was-run t)))))
       (assert (not was-run))
       (ertn-run-test test)
@@ -1894,21 +1894,21 @@ This is an inverse of `add-to-list'."
 
 ;; Test that pass/fail works.
 (ertn-deftest ertn-test-pass ()
-  (let ((test (make-ert-test :body (lambda ()))))
+  (let ((test (make-ertn-test :body (lambda ()))))
     (let ((result (ertn-run-test test)))
-      (assert (typep result 'ert-test-passed)))))
+      (assert (typep result 'ertn-test-passed)))))
 
 (ertn-deftest ertn-test-fail ()
-  (let ((test (make-ert-test :body (lambda () (ertn-fail "failure message")))))
+  (let ((test (make-ertn-test :body (lambda () (ertn-fail "failure message")))))
     (let ((result (let ((ertn-debug-on-error nil))
                     (ertn-run-test test))))
-      (assert (typep result 'ert-test-failed) t)
+      (assert (typep result 'ertn-test-failed) t)
       (assert (equal (ertn-test-result-with-condition-condition result)
                      '(ertn-test-failed "failure message"))
               t))))
 
 (ertn-deftest ertn-test-fail-debug-with-condition-case ()
-  (let ((test (make-ert-test :body (lambda () (ertn-fail "failure message")))))
+  (let ((test (make-ertn-test :body (lambda () (ertn-fail "failure message")))))
     (condition-case condition
         (progn
           (let ((ertn-debug-on-error t))
@@ -1918,14 +1918,14 @@ This is an inverse of `add-to-list'."
        (assert (equal condition '(ertn-test-failed "failure message")) t)))))
 
 (ertn-deftest ertn-test-fail-debug-with-debugger-1 ()
-  (let ((test (make-ert-test :body (lambda () (ertn-fail "failure message")))))
+  (let ((test (make-ertn-test :body (lambda () (ertn-fail "failure message")))))
     (let ((debugger (lambda (&rest debugger-args)
                       (assert nil))))
       (let ((ertn-debug-on-error nil))
         (ertn-run-test test)))))
 
 (ertn-deftest ertn-test-fail-debug-with-debugger-2 ()
-  (let ((test (make-ert-test :body (lambda () (ertn-fail "failure message")))))
+  (let ((test (make-ertn-test :body (lambda () (ertn-fail "failure message")))))
     (block nil
       (let ((debugger (lambda (&rest debugger-args)
                         (return-from nil nil))))
@@ -1934,14 +1934,14 @@ This is an inverse of `add-to-list'."
         (assert nil)))))
 
 (ertn-deftest ertn-test-fail-debug-nested-with-debugger ()
-  (let ((test (make-ert-test :body (lambda ()
+  (let ((test (make-ertn-test :body (lambda ()
                                      (let ((ertn-debug-on-error t))
                                        (ertn-fail "failure message"))))))
     (let ((debugger (lambda (&rest debugger-args)
                       (assert nil nil "Assertion a"))))
       (let ((ertn-debug-on-error nil))
         (ertn-run-test test))))
-  (let ((test (make-ert-test :body (lambda ()
+  (let ((test (make-ertn-test :body (lambda ()
                                      (let ((ertn-debug-on-error nil))
                                        (ertn-fail "failure message"))))))
     (block nil
@@ -1952,16 +1952,16 @@ This is an inverse of `add-to-list'."
         (assert nil nil "Assertion b")))))
 
 (ertn-deftest ertn-test-error ()
-  (let ((test (make-ert-test :body (lambda () (error "error message")))))
+  (let ((test (make-ertn-test :body (lambda () (error "error message")))))
     (let ((result (let ((ertn-debug-on-error nil))
                     (ertn-run-test test))))
-      (assert (typep result 'ert-test-error) t)
+      (assert (typep result 'ertn-test-error) t)
       (assert (equal (ertn-test-result-with-condition-condition result)
                      '(error "error message"))
               t))))
 
 (ertn-deftest ertn-test-error-debug ()
-  (let ((test (make-ert-test :body (lambda () (error "error message")))))
+  (let ((test (make-ertn-test :body (lambda () (error "error message")))))
     (condition-case condition
         (progn
           (let ((ertn-debug-on-error t))
@@ -1973,40 +1973,40 @@ This is an inverse of `add-to-list'."
 
 ;; Test that `should' works.
 (ertn-deftest ertn-test-should ()
-  (let ((test (make-ert-test :body (lambda () (ertn-should nil)))))
+  (let ((test (make-ertn-test :body (lambda () (ertn-should nil)))))
     (let ((result (let ((ertn-debug-on-error nil))
                     (ertn-run-test test))))
-      (assert (typep result 'ert-test-failed) t)
+      (assert (typep result 'ertn-test-failed) t)
       (assert (equal (ertn-test-result-with-condition-condition result)
                      '(ertn-test-failed ((ertn-should nil) :form nil :value nil)))
               t)))
-  (let ((test (make-ert-test :body (lambda () (ertn-should t)))))
+  (let ((test (make-ertn-test :body (lambda () (ertn-should t)))))
     (let ((result (ertn-run-test test)))
-      (assert (typep result 'ert-test-passed) t))))
+      (assert (typep result 'ertn-test-passed) t))))
 
 (ertn-deftest ertn-test-should-value ()
   (ertn-should (eql (ertn-should 'foo) 'foo))
   (ertn-should (eql (ertn-should 'bar) 'bar)))
 
 (ertn-deftest ertn-test-should-not ()
-  (let ((test (make-ert-test :body (lambda () (ertn-should-not t)))))
+  (let ((test (make-ertn-test :body (lambda () (ertn-should-not t)))))
     (let ((result (let ((ertn-debug-on-error nil))
                     (ertn-run-test test))))
-      (assert (typep result 'ert-test-failed) t)
+      (assert (typep result 'ertn-test-failed) t)
       (assert (equal (ertn-test-result-with-condition-condition result)
                      '(ertn-test-failed ((ertn-should-not t) :form t :value t)))
               t)))
-  (let ((test (make-ert-test :body (lambda () (ertn-should-not nil)))))
+  (let ((test (make-ertn-test :body (lambda () (ertn-should-not nil)))))
     (let ((result (ertn-run-test test)))
-      (assert (typep result 'ert-test-passed)))))
+      (assert (typep result 'ertn-test-passed)))))
 
 
 (ertn-deftest ertn-test-should-error ()
   ;; No error.
-  (let ((test (make-ert-test :body (lambda () (ertn-should-error (progn))))))
+  (let ((test (make-ertn-test :body (lambda () (ertn-should-error (progn))))))
     (let ((result (let ((ertn-debug-on-error nil))
                     (ertn-run-test test))))
-      (ertn-should (typep result 'ert-test-failed))
+      (ertn-should (typep result 'ertn-test-failed))
       (ertn-should (equal (ertn-test-result-with-condition-condition result)
                      '(ertn-test-failed
                        ((ertn-should-error (progn))
@@ -2014,15 +2014,15 @@ This is an inverse of `add-to-list'."
                         :value nil
                         :fail-reason "did not signal an error"))))))
   ;; A simple error.
-  (let ((test (make-ert-test :body (lambda () (ertn-should-error (error "foo"))))))
+  (let ((test (make-ertn-test :body (lambda () (ertn-should-error (error "foo"))))))
     (let ((result (ertn-run-test test)))
-      (ertn-should (typep result 'ert-test-passed))))
+      (ertn-should (typep result 'ertn-test-passed))))
   ;; Error of unexpected type, no test.
-  (let ((test (make-ert-test :body (lambda ()
+  (let ((test (make-ertn-test :body (lambda ()
                                      (ertn-should-error (error "foo")
                                                    :type 'singularity-error)))))
     (let ((result (ertn-run-test test)))
-      (ertn-should (typep result 'ert-test-failed))
+      (ertn-should (typep result 'ertn-test-failed))
       (ertn-should (equal
                (ertn-test-result-with-condition-condition result)
                '(ertn-test-failed
@@ -2032,19 +2032,19 @@ This is an inverse of `add-to-list'."
                   :fail-reason
                   "the error signalled did not have the expected type"))))))
   ;; Error of the expected type, no test.
-  (let ((test (make-ert-test :body (lambda ()
+  (let ((test (make-ertn-test :body (lambda ()
                                      (ertn-should-error (signal 'singularity-error
                                                            nil)
                                                    :type 'singularity-error)))))
     (let ((result (ertn-run-test test)))
-      (ertn-should (typep result 'ert-test-passed))))
+      (ertn-should (typep result 'ertn-test-passed))))
   ;; Error that fails the test, no type.
-  (let ((test (make-ert-test :body (lambda ()
+  (let ((test (make-ertn-test :body (lambda ()
                                      (ertn-should-error
                                       (error "foo")
                                       :test (lambda (error) nil))))))
     (let ((result (ertn-run-test test)))
-      (ertn-should (typep result 'ert-test-failed))
+      (ertn-should (typep result 'ertn-test-failed))
       (ertn-should (equal (ertn-test-result-with-condition-condition result)
                      '(ertn-test-failed
                        ((ertn-should-error (error "foo") :test (lambda (error) nil))
@@ -2053,19 +2053,19 @@ This is an inverse of `add-to-list'."
                         :fail-reason
                         "the error signalled did not pass the test"))))))
   ;; Error that passes the test, no type.
-  (let ((test (make-ert-test :body (lambda ()
+  (let ((test (make-ertn-test :body (lambda ()
                                      (ertn-should-error (error "foo")
                                                    :test (lambda (error) t))))))
     (let ((result (ertn-run-test test)))
-      (ertn-should (typep result 'ert-test-passed))))
+      (ertn-should (typep result 'ertn-test-passed))))
   ;; Error that has the expected type but fails the test.
-  (let ((test (make-ert-test :body (lambda ()
+  (let ((test (make-ertn-test :body (lambda ()
                                      (ertn-should-error
                                       (signal 'singularity-error nil)
                                       :type 'singularity-error
                                       :test (lambda (error) nil))))))
     (let ((result (ertn-run-test test)))
-      (ertn-should (typep result 'ert-test-failed))
+      (ertn-should (typep result 'ertn-test-failed))
       (ertn-should (equal (ertn-test-result-with-condition-condition result)
                      '(ertn-test-failed
                        ((ertn-should-error (signal 'singularity-error nil)
@@ -2076,29 +2076,29 @@ This is an inverse of `add-to-list'."
                         :fail-reason
                         "the error signalled did not pass the test"))))))
   ;; Error that has the expected type and passes the test.
-  (let ((test (make-ert-test :body (lambda ()
+  (let ((test (make-ertn-test :body (lambda ()
                                      (ertn-should-error
                                       (signal 'singularity-error nil)
                                       :type 'singularity-error
                                       :test (lambda (error) t))))))
     (let ((result (ertn-run-test test)))
-      (ertn-should (typep result 'ert-test-passed))))
+      (ertn-should (typep result 'ertn-test-passed))))
   )
 
 (ertn-deftest ertn-test-should-error-subtypes ()
-  (let ((test (make-ert-test
+  (let ((test (make-ertn-test
                :body (lambda ()
                        (ertn-should-error (signal 'singularity-error nil)
                                      :type 'singularity-error
                                      :exclude-subtypes t)))))
     (let ((result (ertn-run-test test)))
-      (ertn-should (typep result 'ert-test-passed))))
-  (let ((test (make-ert-test
+      (ertn-should (typep result 'ertn-test-passed))))
+  (let ((test (make-ertn-test
                :body (lambda ()
                        (ertn-should-error (signal 'arith-error nil)
                                      :type 'singularity-error)))))
     (let ((result (ertn-run-test test)))
-      (ertn-should (typep result 'ert-test-failed))
+      (ertn-should (typep result 'ertn-test-failed))
       (ertn-should (equal
                (ertn-test-result-with-condition-condition result)
                '(ertn-test-failed
@@ -2108,13 +2108,13 @@ This is an inverse of `add-to-list'."
                   :condition (arith-error)
                   :fail-reason
                   "the error signalled did not have the expected type"))))))
-  (let ((test (make-ert-test
+  (let ((test (make-ertn-test
                :body (lambda ()
                        (ertn-should-error (signal 'arith-error nil)
                                      :type 'singularity-error
                                      :exclude-subtypes t)))))
     (let ((result (ertn-run-test test)))
-      (ertn-should (typep result 'ert-test-failed))
+      (ertn-should (typep result 'ertn-test-failed))
       (ertn-should (equal
                (ertn-test-result-with-condition-condition result)
                '(ertn-test-failed
@@ -2125,13 +2125,13 @@ This is an inverse of `add-to-list'."
                   :condition (arith-error)
                   :fail-reason
                   "the error signalled did not have the expected type"))))))
-  (let ((test (make-ert-test
+  (let ((test (make-ertn-test
                :body (lambda ()
                        (ertn-should-error (signal 'singularity-error nil)
                                      :type 'arith-error
                                      :exclude-subtypes t)))))
     (let ((result (ertn-run-test test)))
-      (ertn-should (typep result 'ert-test-failed))
+      (ertn-should (typep result 'ertn-test-failed))
       (ertn-should (equal
                (ertn-test-result-with-condition-condition result)
                '(ertn-test-failed
@@ -2166,7 +2166,7 @@ This is an inverse of `add-to-list'."
           (,(lambda () (let ((x t)) (ertn-should (error "foo"))))
            (error "foo")))
         do
-        (let ((test (make-ert-test :body body)))
+        (let ((test (make-ertn-test :body body)))
           (condition-case actual-condition
               (progn
                 (let ((ertn-debug-on-error t))
@@ -2178,7 +2178,7 @@ This is an inverse of `add-to-list'."
 (ertn-deftest ertn-test-messages ()
   (let* ((message-string "Test message")
          (messages-buffer (get-buffer-create "*Messages*"))
-         (test (make-ert-test :body (lambda () (message "%s" message-string)))))
+         (test (make-ertn-test :body (lambda () (message "%s" message-string)))))
     (with-current-buffer messages-buffer
       (let ((result (ertn-run-test test)))
         (ertn-should (equal (concat message-string "\n")
@@ -2198,7 +2198,7 @@ This is an inverse of `add-to-list'."
         (rename-buffer "*Messages*")))))
 
 (ertn-deftest ertn-test-messages-on-log-truncation ()
-  (let ((test (make-ert-test
+  (let ((test (make-ertn-test
                :body (lambda ()
                        ;; Emacs would combine messages if we
                        ;; generate the same message multiple
@@ -2217,32 +2217,32 @@ This is an inverse of `add-to-list'."
                         "c\nd\n"))))
       (ertn-should (equal (ertn-test-result-messages result) "a\nb\nc\nd\n")))))
 
-;; Test `ert-select-tests'.
+;; Test `ertn-select-tests'.
 (ertn-deftest ertn-test-select-regexp ()
-  (ertn-should (equal (ertn-select-tests "^ert-test-select-regexp$" t)
-                 (list (ertn-get-test 'ert-test-select-regexp)))))
+  (ertn-should (equal (ertn-select-tests "^ertn-test-select-regexp$" t)
+                 (list (ertn-get-test 'ertn-test-select-regexp)))))
 
 (ertn-deftest ertn-test-test-boundp ()
-  (ertn-should (ertn-test-boundp 'ert-test-test-boundp))
-  (ertn-should-not (ertn-test-boundp (make-symbol "ert-not-a-test"))))
+  (ertn-should (ertn-test-boundp 'ertn-test-test-boundp))
+  (ertn-should-not (ertn-test-boundp (make-symbol "ertn-not-a-test"))))
 
 (ertn-deftest ertn-test-select-member ()
   (ertn-should (equal (ertn-select-tests '(member ertn-test-select-member) t)
-                 (list (ertn-get-test 'ert-test-select-member)))))
+                 (list (ertn-get-test 'ertn-test-select-member)))))
 
 (ertn-deftest ertn-test-select-test ()
-  (ertn-should (equal (ertn-select-tests (ertn-get-test 'ert-test-select-test) t)
-                 (list (ertn-get-test 'ert-test-select-test)))))
+  (ertn-should (equal (ertn-select-tests (ertn-get-test 'ertn-test-select-test) t)
+                 (list (ertn-get-test 'ertn-test-select-test)))))
 
 (ertn-deftest ertn-test-select-symbol ()
-  (ertn-should (equal (ertn-select-tests 'ert-test-select-symbol t)
-                 (list (ertn-get-test 'ert-test-select-symbol)))))
+  (ertn-should (equal (ertn-select-tests 'ertn-test-select-symbol t)
+                 (list (ertn-get-test 'ertn-test-select-symbol)))))
 
 (ertn-deftest ertn-test-select-and ()
-  (let ((test (make-ert-test
+  (let ((test (make-ertn-test
                :name nil
                :body nil
-               :most-recent-result (make-ert-test-failed
+               :most-recent-result (make-ertn-test-failed
                                     :condition nil
                                     :backtrace nil))))
     (ertn-should (equal (ertn-select-tests `(and (member ,test) :failed) t)
@@ -2311,16 +2311,16 @@ This is an inverse of `add-to-list'."
 
 
 
-;; Test `ert-run-tests'.
+;; Test `ertn-run-tests'.
 (ertn-deftest ertn-test-run-tests ()
-  (let ((passing-test (make-ert-test :name 'passing-test
+  (let ((passing-test (make-ertn-test :name 'passing-test
                                      :body (lambda () (ertn-pass))))
-        (failing-test (make-ert-test :name 'failing-test
+        (failing-test (make-ertn-test :name 'failing-test
                                      :body (lambda () (ertn-fail
                                                        "failure message"))))
         )
     (let ((ertn-debug-on-error nil))
-      (let* ((buffer-name (generate-new-buffer-name " *ert-test-run-tests*"))
+      (let* ((buffer-name (generate-new-buffer-name " *ertn-test-run-tests*"))
              (messages nil)
              (mock-message-fn
               (lambda (format-string &rest args)
@@ -2353,7 +2353,7 @@ This is an inverse of `add-to-list'."
 (ertn-deftest ertn-test-special-operator-p ()
   (ertn-should (ertn-special-operator-p 'if))
   (ertn-should-not (ertn-special-operator-p 'car))
-  (ertn-should-not (ertn-special-operator-p 'ert-special-operator-p))
+  (ertn-should-not (ertn-special-operator-p 'ertn-special-operator-p))
   (let ((b (gensym)))
     (ertn-should-not (ertn-special-operator-p b))
     (fset b 'if)
@@ -2362,7 +2362,7 @@ This is an inverse of `add-to-list'."
 ;; This test attempts to demonstrate that there is no way to force
 ;; immediate truncation of the *Messages* buffer from Lisp (and hence
 ;; justifies the existence of
-;; `ert-force-message-log-buffer-truncation'): The only way that came
+;; `ertn-force-message-log-buffer-truncation'): The only way that came
 ;; to my mind was (message ""), which doesn't have the desired effect.
 (ertn-deftest ertn-test-builtin-message-log-flushing ()
   (ertn-call-with-temporary-messages-buffer
@@ -2408,7 +2408,7 @@ This is an inverse of `add-to-list'."
     (let ((ertn-test-body-was-run nil))
       ;; The buffer name chosen here should not compete with the default
       ;; results buffer name for completion in `switch-to-buffer'.
-      (let ((stats (ertn-run-tests-interactively "^ert-" " *ert self-tests*")))
+      (let ((stats (ertn-run-tests-interactively "^ertn-" " *ert self-tests*")))
         (assert ertn-test-body-was-run)
         (when (zerop (+ (ertn-stats-passed-unexpected stats)
                         (ertn-stats-failed-unexpected stats)
@@ -2416,6 +2416,6 @@ This is an inverse of `add-to-list'."
           ;; Hide results window only when everything went well.
           (set-window-configuration window-configuration))))))
 
-(provide 'ert)
+(provide 'ertn)
 
 ;;; ertn.el ends here
