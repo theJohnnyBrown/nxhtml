@@ -4,7 +4,7 @@
 ;; Maintainer:
 ;; Created: Fri Mar 09 2007
 (defconst mumamo:version "0.91") ;;Version:
-;; Last-Updated: 2009-10-19 Mon
+;; Last-Updated: 2011-11-03T00:18:05+0100
 ;; URL: http://OurComments.org/Emacs/Emacs.html
 ;; Keywords:
 ;; Compatibility:
@@ -491,7 +491,9 @@ See also `mumamo-chunk-value-set-min'."
          (major   (mumamo-chunk-major-mode chunk)))
     ;;(msgtrc "keyboard-major-mode cmin=%s pos=%s cmax=%s" cmin pos cmax)
     (unless (and (<= cmin pos)
-                 (< pos cmax))
+                 ;; Fix-me: patch for bug 885465. Test!
+                 ;;(< pos cmax))
+                 (<= pos cmax))
       (setq major 'mumamo-border-mode))
     major))
 
