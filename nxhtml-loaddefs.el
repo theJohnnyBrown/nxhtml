@@ -1453,7 +1453,7 @@ Commands:
 ;;;***
 
 ;;;### (autoloads (ertn-run-tests-interactively ertn-deftest) "../tests/ertn"
-;;;;;;  "tests/ertn.el" (20145 51715))
+;;;;;;  "tests/ertn.el" (20145 54271))
 ;;; Generated autoloads from tests/ertn.el
 (web-autoload-require 'ertn 'lp '(nxhtml-download-root-url nil) "tests/ertn" nxhtml-install-dir 'nxhtml-byte-compile-file)
 
@@ -5223,7 +5223,7 @@ accept it or skip it.
 ;;;;;;  "util/idn.el" "util/mumamo-trace.el" "util/new-key-seq-widget.el"
 ;;;;;;  "util/org-odt.el" "util/org-panel.el" "util/pipm.el" "util/powershell-mode.el"
 ;;;;;;  "util/rxi.el" "util/tipframe.el" "util/umbrain.el" "util/win-alg.el"
-;;;;;;  "web-autoload.el") (20145 53336 796000))
+;;;;;;  "web-autoload.el") (20145 54340 795000))
 
 ;;;***
 
