@@ -2,17 +2,19 @@
 ;; 
 ;; Author: Lennart Borgman (lennart O borgman A gmail O com)
 ;; Created: 2011-08-18
-;; Version: 0.2
-;; Last-Updated: 
+;; Version: 0.5
+;; Last-Updated: 2011-11-03T03:38:21+0100
 ;; URL: 
 ;; Keywords: video
 ;; Compatibility: 
 ;; 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; (rtmpdump-from-url "http://svtplay.se/t/5103478/dokumentarfilm")
+;; (rtmpdump-from-url "http://svtplay.se/t/103478/dokumentarfilm")
 ;; 
 ;;; Commentary: 
 ;;
-;; Download streaming videos from SVTPlay etc.
+;; Download streaming videos (from SVTPlay etc).
 ;; See http://huggpunkt.org/ladda-hem-fran-svtplay-v2 (in Swedish).
 ;; 
 ;; The commands shows a command for downloading with rtmpdump.
@@ -44,7 +46,7 @@
 ;;; Code:
 
 (defcustom rtmpdump-program "rtmpdump.exe"
-  "Name of rtmpdump program."
+  "Full path to the rtmpdump program."
   :type 'string
   :group 'rtmpdump)
 
@@ -52,7 +54,6 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Commands
 
-;; (rtmpdump-from-url "http://svtplay.se/v/2506447/dokumentarfilm/darwins_vag_fran_ide_till_teori")
 
 ;;;###autoload
 (defun rtmpdump-from-url (url)
@@ -79,14 +80,21 @@
   (when cmd
     (if noninteractive
         (message "COMMAND: %s" cmd)
-      (let ((buf (get-buffer-create "*RTMPDUMP*")))
+      (let ((buf (get-buffer-create "*RTMPDUMP*"))
+            (err (string= "Error:" (substring cmd 0 6))))
+        (unless err (kill-new cmd))
         (with-current-buffer buf
           (erase-buffer)
-          (insert "Command (paste this in a console, with your file name inserted):\n\n  "
-                  cmd
-                  "\n\n"
-                  "If download stops then add -e to the command line and\n"
-                  "call it again until the file is 100% downloaded."))
+          (insert "RTMPDUMP\n\n")
+          (if err
+              (insert "Wrong URL?\n\n"
+                      cmd)
+            (insert "Paste this in a console, with your file name inserted."
+                    "\nNOTE: It is already on the clipboard:\n\n  "
+                    cmd
+                    "\n\n"
+                    "If download stops then add -e to the command line and\n"
+                    "call it again until the file is 100% downloaded.")))
         (display-buffer buf)))))
 
 (defun rtmpdump-from-url-1 (url)
@@ -112,11 +120,11 @@
       (cond
        ((not (re-search-forward patt-start nil t))
         (message "Error: Could not find %S" patt-start)
-        nil)
+        (format "Error: Could not find %S" patt-start))
        ;; Fixme: search for different bitrates.
        ((not (re-search-forward patt-url nil t))
         (message "Error: Could not find %S" patt-url)
-        nil)
+        (format "Error: Could not find %S" patt-url))
        (t
         (let* ((start (point))
                (rtmpe-url (match-string 1))
@@ -124,8 +132,9 @@
                (ext (file-name-extension rtmpe-url))
                (outfile (concat "YOUR-FILE." ext))
                (q-outfile (shell-quote-argument outfile))
+               (rtmpdump-os (convert-standard-filename rtmpdump-program))
                (prog (if (file-exists-p rtmpdump-program)
-                         (shell-quote-argument rtmpdump-program)
+                         (shell-quote-argument rtmpdump-os)
                        rtmpdump-program))
                (cmd (format "%s -r %s -o %s" prog q-rtmpe-url q-outfile))
                )
