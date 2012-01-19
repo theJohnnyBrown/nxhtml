@@ -97,17 +97,16 @@
         //
         // Enter the URL of CSS style files you want to load:
         css : [
-            "https://dl.dropbox.com/u/848981/it/cw/cw.css"
         ],
         // Enter the URL of javascript files you want to load:
         js  : [
-            "https://dl.dropbox.com/u/848981/it/jQuery.myPopupMenu.js"
         ],    
         // Enter jQuery info (note that you need to load via https):
         jqpath : "https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js",
         jquery : "1.7.1" // Min jQuery version number.
     };
 
+    var myArg;
     function myBookmarklet() {
         // Enter you code for the bookmarklet here! This function is
         // ran after all .css and .js files has been loaded (inclusive
@@ -141,7 +140,7 @@
     }
 
     function hasNeededVersion (need_version, has_version) {
-        if (console) console.log("hasNeededVersion ("+need_version+", "+has_version+")");
+        // if (console) console.log("hasNeededVersion ("+need_version+", "+has_version+")");
         if (!has_version) return false;
         if (!need_version) return true; // Since we have it.
         var need_p = need_version.split(".");
@@ -166,17 +165,81 @@
     }
 
     startTheBookmarklet(myOptions);
+
+    // From http://blog.stchur.com/2007/04/06/serializing-objects-in-javascript/
+    function serialize(_obj)
+    {
+        // Added primitives (lb):
+        if (null === _obj) return "null";
+        if (false === _obj) return "false";
+        if (undefined === _obj) return "undefined";
+
+        // Let Gecko browsers do this the easy way
+        if (typeof _obj.toSource !== 'undefined' && typeof _obj.callee === 'undefined')
+        {
+            return _obj.toSource();
+        }
+        // Other browsers must do it the hard way
+        switch (typeof _obj)
+        {
+            // numbers, booleans, and functions are trivial:
+            // just return the object itself since its default .toString()
+            // gives us exactly what we want
+        case 'number':
+        case 'boolean':
+        case 'function':
+            return _obj;
+            break;
+            
+            // for JSON format, strings need to be wrapped in quotes
+        case 'string':
+            return '\'' + _obj + '\'';
+            break;
+            
+        case 'object':
+            var str;
+            if (_obj.constructor === Array || typeof _obj.callee !== 'undefined')
+            {
+            str = '[';
+                var i, len = _obj.length;
+                for (i = 0; i < len-1; i++) { str += serialize(_obj[i]) + ','; }
+                str += serialize(_obj[i]) + ']';
+            }
+            else
+            {
+                str = '{';
+                var key;
+                for (key in _obj) { str += key + ':' + serialize(_obj[key]) + ','; }
+                str = str.replace(/\,$/, '') + '}';
+            }
+            return str;
+            break;
+            
+        default:
+            return 'UNKNOWN';
+            break;
+        }
+    }
+
     function startTheBookmarklet(a)
     {
-        var myUniqId = "bookmarkletFramework26536"; // Let is store things in the window object.
+        var myUniqId = "bookmarkletFramework26536"; // For bookmarklet framework, same as in bookmarklet!
         function loadRestOfMyScriptsThenStart(b)
         {
             if(b.length===0){
                 // Give myBookmarklet an external name so we can call
                 // it directly in the first bookmarklet part if this
                 // file already have been loaded.
-                myBookmarklet();
-                window[myNamespace] = myBookmarklet;
+                var bookletFun = function() {
+                    myArgs = window[myNamespace+"-myArgs"];
+                    if (console) console.log("\n>>>>>>>>>>>>>>>>>>>>>>>>>> myArgs>>>>>>>>>>>>"
+                                             +serialize(myArgs)
+                                             +"<<<<<<<<<<<<<<<<<<<<<<<<<<<<");
+                    myBookmarklet();
+                }
+                window[myNamespace] = bookletFun;
+                // myBookmarklet();
+                window[myNamespace]();
                 return false
             }
             var next = b[0];
