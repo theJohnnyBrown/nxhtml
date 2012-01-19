@@ -1,17 +1,25 @@
 // This is the bookmarklet template for the bookmarklet framework.
 // The js file template is in bm-base-file.js
 //
-// To make code for a bookmarklet  (fix-me)
-
-// http://closure-compiler.appspot.com/home
+// To make code for a bookmarklet fill in the values below.
+// Then remove comments and new lines. This can be done for example here:
+//
+//   http://closure-compiler.appspot.com/home
+// 
+// (You can do all this with the command jsut-mk-bookmarklet in the
+// Emacs elips package nXhtml.)
+////////////////////////////////////////////////////////////////////
 
 (function(){
 
     ////////////////////////////////////////////////////////////////////
     /// Your values (you must use '' instead of ""):
-    var myNamespace = 'NAMESPACE'; // For this bookmarklet, same as in .js file!
     var myURL='URL';
+    var myArgs=null;
+    var myNamespace = 'NAMESPACE'; // For this bookmarklet, same as in .js file!
     ////////////////////////////////////////////////////////////////////
+
+    window[myNamespace+'-myArgs'] = myArgs;
 
     // Has the .js file already been loaded?
     if (window[myNamespace])

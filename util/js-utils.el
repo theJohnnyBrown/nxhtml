@@ -45,107 +45,10 @@
 ;; 
 ;;; Code:
 
-(defvar jsut-bookmarklet-template-file (expand-file-name "etc/js/bm-base.js" nxhtml-install-dir))
 
-;;;###autoload
-(defun jsut-mk-bookmarklet (js-buffer)
-  "Given js bookmarklet itself make HTML suitable for adding bookmarklet.
-JS-BUFFER should contain the javascript code that is loaded from
-the bookmarklet. \(Compare `jsut-bookmarkletify' where the input
-is just the js source code in the bookmarklet itself.)
-"
-  (interactive (list (current-buffer)))
-  (let* ((re-my-namespace (rx bol (* space) "var" (+ space) "myNamespace" (* space) "=" (* space)
-                              (any "'\"")
-                              (submatch (* nonl))
-                              (any "'\"")))
 
-         ;; fix-me:
-         (re-my-url-src (rx bol (* space) "//" (+ space) "myURL" (* space) "=" (* space)
-                            (any "'\"")
-                            (submatch (* nonl))
-                            (any "'\"")))
-         (re-my-url-bm (rx bol (* space) "var" (+ space) "myURL" (* space) "=" (* space)
-                           (any "'\"")
-                           (submatch (* nonl))
-                           (any "'\"")))
-         my-namespace
-         my-url)
-    (with-current-buffer js-buffer
-      (let ((here (point)))
-        (save-restriction
-          (widen)
-          (goto-char (point-min))
-          (if (not (re-search-forward re-my-namespace nil t))
-              (error "Can't find line with 'var myNamespace=...' in source buffer %s" js-buffer)
-            (setq my-namespace (match-string 1)))
-          (goto-char (point-min))
-          (if (not (re-search-forward re-my-url-src nil t))
-              (error "Can't find line with '// myURL=...' in source buffer %s" js-buffer)
-            (setq my-url (match-string 1)))
-          (goto-char here))))
-    (when my-namespace
-      (let* (;;(tbuf-opened t)
-             (template-buf (get-buffer-create (format "*Bookmarklet source for %s*" (buffer-name js-buffer))))
-              ;; (or (find-buffer-visiting jsut-bookmarklet-template-file)
-              ;;     (setq tbuf-opened nil)
-              ;;     (find-file-noselect (find-buffer-visiting jsut-bookmarklet-template-file))))
-             )
-        (with-current-buffer template-buf
-          (when (= 0 (buffer-size))
-            (insert-file-contents jsut-bookmarklet-template-file)
-            (goto-char (point-min))
-            (search-forward "///////")
-            (forward-line)
-            (delete-region (point-min) (point))
-            (insert "// Bookmarklet js source for loading code in " (buffer-name js-buffer)
-                    "\n"
-                    "// Note: If you change myArgs you may want to save this buffer!")
-            (forward-line)
-            (js-mode))
-          (let ((here (point)))
-            (save-restriction
-              (widen)
-              (goto-char (point-min))
-              (if (not (re-search-forward re-my-namespace nil t))
-                  (error "Can't find line with 'var myNamespace=...' in template buffer %s" template-buf)
-                (replace-match my-namespace t t nil 1))
-              (goto-char (point-min))
-              (if (not (re-search-forward re-my-url-bm nil t))
-                  (error "Can't find line with 'var myURL=...' in template buffer %s" template-buf)
-                (replace-match my-url t t nil 1)))
-            (goto-char here)))
-        (switch-to-buffer template-buf)
-        (jsut-bookmarkletify template-buf)
-        ;; (unless tbuf-opened (kill-buffer template-buf))
-        ))))
-
-;;;###autoload
-(defun jsut-bookmarkletify (js-bm-buffer)
-  "Given js bookmarklet code make HTML suitable for adding bookmarklet.
-JS-BM-BUFFER should contain the bookmarklet javascript code
-source.  This may include comments and new line characters."
-  (interactive (list (current-buffer)))
-  (with-current-buffer js-bm-buffer
-    (let* ((js-in (buffer-substring-no-properties (point-min) (point-max)))
-           (js js-in)
-           (outbuf (get-buffer-create "*BOOKMARK*")))
-      (setq js (replace-regexp-in-string "/\\*\\(?:.\\|\n\\)*\\*/" "" js))
-      (setq js (replace-regexp-in-string "\\(^\\|;\\)\s*//.*\n" "\\1" js))
-      (if (string-match-p "[^\\]\"" js)
-          (message "The javascript code contains doubble-quotes (\"). This can't be used in bookmarklets.")
-        (setq js (replace-regexp-in-string "\n" " " js))
-        (setq js (replace-regexp-in-string "\s+" " " js))
-        (with-current-buffer outbuf
-          (erase-buffer)
-          (html-mumamo-mode)
-          (insert
-           "\n<a href=\"javascript:"
-           js
-           "; void 0;\">BOOKMARKLET</a>\n"
-           "<!-- Bookmark length = " (number-to-string (length js)) " -->\n\n"
-           ))
-        (display-buffer outbuf)))))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; plovr
 
 (defcustom jsut-plovr-jar-file "PATH-TO/plovr-96feca4d303b.jar"
   "Path to plovr jar file..
@@ -251,22 +154,141 @@ For information about plovr see URL `http://plovr.com/'."
           (message "cmd=%s" compile-command)
           (call-interactively 'compile))))))
 
-(defun jsut-css-path-to-xpath (css-path)
-  "Not ready."
-  (interactive (list (if (region-active-p)
-                         (buffer-substring-no-properties (region-beginning) (region-end))
-                       (buffer-substring-no-properties (point-at-bol) (point-at-eol)))))
-;; html.v2 body div.content div.content-outer div.fauxborder-left div.content-inner div.main-outer div.fauxborder-left div.region-inner div.columns div.columns-inner div.column-center-outer div.column-center-inner div#main.main div#Blog1.widget div.blog-posts div.date-outer div.date-posts div.post-outer div.post h3.post-title a
-;; /html/body/div[3]/div[2]/div[2]/div[2]/div[2]/div[2]/div[2]/div/div[4]/div/div/div/div/div/div/div/div/div/h3/a
-  (let ((css-parts (split-string css-path "\s+"))
-        (syntax-table (standard-syntax-table)))
-    (dolist (part css-parts)
-      (let ((parts (butlast (split-string "div.x" "\\>")))
-            )
-        (message "%s" parts)))))
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; Bookmarklets
 
 ;;;###autoload
-(defun jsut-css-to-jQuery-js (css-buffer)
+(defun jsut-bookmarkletify (js-bm-buffer)
+  "Given js bookmarklet code make HTML suitable for adding bookmarklet.
+JS-BM-BUFFER should contain the bookmarklet javascript code
+source.  This may include comments and new line characters."
+  (interactive (list (current-buffer)))
+  (with-current-buffer js-bm-buffer
+    (let* ((js-in (buffer-substring-no-properties (point-min) (point-max)))
+           (js js-in)
+           (outbuf (get-buffer-create "*BOOKMARK*")))
+      (setq js (replace-regexp-in-string "/\\*\\(?:.\\|\n\\)*\\*/" "" js))
+      (setq js (replace-regexp-in-string "\\(^\\|;\\)\s*//.*\n" "\\1" js))
+      (if (string-match-p "[^\\]\"" js)
+          (message "The javascript code contains doubble-quotes (\"). This can't be used in bookmarklets.")
+        (setq js (replace-regexp-in-string "\n" " " js))
+        (setq js (replace-regexp-in-string "\s+" " " js))
+        (with-current-buffer outbuf
+          (erase-buffer)
+          (html-mumamo-mode)
+          (insert
+           "\n<a href=\"javascript:"
+           js
+           "; void 0;\">BOOKMARKLET</a>\n"
+           "<!-- Bookmark length = " (number-to-string (length js)) " -->\n\n"
+           ))
+        (display-buffer outbuf)))))
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; jQuery bookmarklets
+
+(defvar jsut-bookmarklet-template      (expand-file-name "etc/js/bm-base.js"      nxhtml-install-dir))
+(defvar jsut-bookmarklet-file-template (expand-file-name "etc/js/bm-base-file.js" nxhtml-install-dir))
+
+;;;###autoload
+(defun jsut-jquery-create-bookmarklet-file ()
+  "Create jQuery bookmarklet JavaScript file template.
+To make a bookmarklet for this you can use `jsut-jquery-mk-bookmarklet'."
+  (interactive)
+  (let ((buf-name "*New jQuery bookmarklet file*"))
+    (if (get-buffer buf-name)
+        (message "Please delete (or save) the buffer %S first!" buf-name)
+      (switch-to-buffer (get-buffer-create buf-name))
+      (insert-file-contents jsut-bookmarklet-file-template)
+      (message "Please save the buffer to the file you want with C-x C-w"))))
+    
+
+;;;###autoload
+(defun jsut-jquery-mk-bookmarklet (js-buffer)
+  "Make bookmarklet javascript template.
+JS-BUFFER should contain the javascript code that is loaded from
+the bookmarklet.  This code should have markers like those given
+by `jsut-jquery-create-bookmarklet-file'.
+
+\(Compare `jsut-bookmarkletify' where the input is just the js
+source code in the bookmarklet itself.)
+"
+  (interactive (list (current-buffer)))
+  (let* ((re-my-namespace (rx bol (* space) "var" (+ space) "myNamespace" (* space) "=" (* space)
+                              (any "'\"")
+                              (submatch (* nonl))
+                              (any "'\"")))
+
+         ;; fix-me:
+         (re-my-url-src (rx bol (* space) "//" (+ space) "myURL" (* space) "=" (* space)
+                            (any "'\"")
+                            (submatch (* nonl))
+                            (any "'\"")))
+         (re-my-url-bm (rx bol (* space) "var" (+ space) "myURL" (* space) "=" (* space)
+                           (any "'\"")
+                           (submatch (* nonl))
+                           (any "'\"")))
+         my-namespace
+         my-url)
+    (with-current-buffer js-buffer
+      (let ((here (point)))
+        (save-restriction
+          (widen)
+          (goto-char (point-min))
+          (if (not (re-search-forward re-my-namespace nil t))
+              (error "Can't find line with 'var myNamespace=...' in source buffer %s" js-buffer)
+            (setq my-namespace (match-string 1)))
+          (goto-char (point-min))
+          (if (not (re-search-forward re-my-url-src nil t))
+              (error "Can't find line with '// myURL=...' in source buffer %s" js-buffer)
+            (setq my-url (match-string 1)))
+          (goto-char here))))
+    (when my-namespace
+      (let* (;;(tbuf-opened t)
+             (template-buf (get-buffer-create (format "*Bookmarklet source for %s*" (buffer-name js-buffer))))
+              ;; (or (find-buffer-visiting jsut-bookmarklet-template)
+              ;;     (setq tbuf-opened nil)
+              ;;     (find-file-noselect (find-buffer-visiting jsut-bookmarklet-template))))
+             )
+        (with-current-buffer template-buf
+          (when (= 0 (buffer-size))
+            (insert-file-contents jsut-bookmarklet-template)
+            (goto-char (point-min))
+            (search-forward "///////")
+            (forward-line)
+            (delete-region (point-min) (point))
+            (insert "// Bookmarklet js source for loading code in " (buffer-name js-buffer)
+                    "\n"
+                    "// Note: If you change myArgs you may want to save this buffer!")
+            (forward-line)
+            (js-mode))
+          (let ((here (point)))
+            (save-restriction
+              (widen)
+              (goto-char (point-min))
+              (if (not (re-search-forward re-my-namespace nil t))
+                  (error "Can't find line with 'var myNamespace=...' in template buffer %s" template-buf)
+                (replace-match my-namespace t t nil 1))
+              (goto-char (point-min))
+              (if (not (re-search-forward re-my-url-bm nil t))
+                  (error "Can't find line with 'var myURL=...' in template buffer %s" template-buf)
+                (replace-match my-url t t nil 1)))
+            (goto-char here)))
+        (switch-to-buffer template-buf)
+        ;; (jsut-bookmarkletify template-buf)
+        (message "Please save the buffer to the file you want with C-x C-w")))))
+
+;;;###autoload
+(defun jsut-jquery-css-to-js (css-buffer)
+  "Convert CSS in CSS-BUFFER to jQuery code.
+For faster startup of jQuery bookmarklets.  \(Use plovr to
+include this file so the bookmarklet is all contained in one
+file.)"
   (interactive (list (current-buffer)))
   (let ((css (with-current-buffer css-buffer
                (buffer-substring-no-properties (point-min) (point-max))))

@@ -316,7 +316,7 @@ Report a bug in nXhtml.
 
 ;;;### (autoloads (nxhtml-overview nxhtml-menu-mode nxhtml-browse-region
 ;;;;;;  nxhtml-browse-file nxhtml-edit-with-gimp mumamo-switch-to-other-html)
-;;;;;;  "../nxhtml/nxhtml-menu" "nxhtml/nxhtml-menu.el" (20239 578))
+;;;;;;  "../nxhtml/nxhtml-menu" "nxhtml/nxhtml-menu.el" (20248 6279))
 ;;; Generated autoloads from nxhtml/nxhtml-menu.el
 (web-autoload-require 'nxhtml-menu 'lp '(nxhtml-download-root-url nil) "nxhtml/nxhtml-menu" nxhtml-install-dir 'nxhtml-byte-compile-file)
 
@@ -2996,30 +2996,16 @@ See also the command `inlimg-mode'.
 
 ;;;***
 
-;;;### (autoloads (jsut-plovr-compile jsut-plovr-edit-conf jsut-plovr-dev-info
-;;;;;;  jsut-bookmarkletify jsut-mk-bookmarklet) "js-utils" "util/js-utils.el"
-;;;;;;  (20239 666))
+;;;### (autoloads (jsut-jquery-css-to-js jsut-jquery-mk-bookmarklet
+;;;;;;  jsut-jquery-create-bookmarklet-file jsut-bookmarkletify jsut-plovr-compile
+;;;;;;  jsut-plovr-edit-conf jsut-plovr-dev-info) "js-utils" "util/js-utils.el"
+;;;;;;  (20248 5755))
 ;;; Generated autoloads from util/js-utils.el
 (web-autoload-require 'js-utils 'lp '(nxhtml-download-root-url nil) "util/js-utils" nxhtml-install-dir 'nxhtml-byte-compile-file)
 
 
-(nxhtml-autoload 'jsut-mk-bookmarklet `(lp '(nxhtml-download-root-url nil) "util/js-utils" nxhtml-install-dir) "\
-Given js bookmarklet itself make HTML suitable for adding bookmarklet.
-JS-BUFFER should contain the javascript code that is loaded from
-the bookmarklet. (Compare `jsut-bookmarkletify' where the input
-is just the js source code in the bookmarklet itself.)
-
-\(fn JS-BUFFER)" t nil)
-
-(nxhtml-autoload 'jsut-bookmarkletify `(lp '(nxhtml-download-root-url nil) "util/js-utils" nxhtml-install-dir) "\
-Given js bookmarklet code make HTML suitable for adding bookmarklet.
-JS-BM-BUFFER should contain the bookmarklet javascript code
-source.  This may include comments and new line characters.
-
-\(fn JS-BM-BUFFER)" t nil)
-
 (nxhtml-autoload 'jsut-plovr-dev-info `(lp '(nxhtml-download-root-url nil) "util/js-utils" nxhtml-install-dir) "\
-Not documented
+Get info for how to start plovr in dev mode for PLOVR-FILE.
 
 \(fn PLOVR-FILE)" t nil)
 
@@ -3032,6 +3018,38 @@ Edit plovr config file for JS-FILE.
 Compile JS-FILE with plovr/closure compiler.
 
 \(fn JS-FILE)" t nil)
+
+(nxhtml-autoload 'jsut-bookmarkletify `(lp '(nxhtml-download-root-url nil) "util/js-utils" nxhtml-install-dir) "\
+Given js bookmarklet code make HTML suitable for adding bookmarklet.
+JS-BM-BUFFER should contain the bookmarklet javascript code
+source.  This may include comments and new line characters.
+
+\(fn JS-BM-BUFFER)" t nil)
+
+(nxhtml-autoload 'jsut-jquery-create-bookmarklet-file `(lp '(nxhtml-download-root-url nil) "util/js-utils" nxhtml-install-dir) "\
+Create jQuery bookmarklet JavaScript file template.
+To make a bookmarklet for this you can use `jsut-jquery-mk-bookmarklet'.
+
+\(fn)" nil nil)
+
+(nxhtml-autoload 'jsut-jquery-mk-bookmarklet `(lp '(nxhtml-download-root-url nil) "util/js-utils" nxhtml-install-dir) "\
+Make bookmarklet javascript template.
+JS-BUFFER should contain the javascript code that is loaded from
+the bookmarklet.  This code should have markers like those given
+by `jsut-jquery-create-bookmarklet-file'.
+
+\(Compare `jsut-bookmarkletify' where the input is just the js
+source code in the bookmarklet itself.)
+
+\(fn JS-BUFFER)" t nil)
+
+(nxhtml-autoload 'jsut-jquery-css-to-js `(lp '(nxhtml-download-root-url nil) "util/js-utils" nxhtml-install-dir) "\
+Convert CSS in CSS-BUFFER to jQuery code.
+For faster startup of jQuery bookmarklets.  (Use plovr to
+include this file so the bookmarklet is all contained in one
+file.)
+
+\(fn CSS-BUFFER)" t nil)
 
 ;;;***
 
@@ -5258,11 +5276,11 @@ accept it or skip it.
 ;;;;;;  "tests/ertn2.el" "tests/hfy-test.el" "tests/inemacs/bug1013.el"
 ;;;;;;  "tests/mumamo-test.el" "tests/nxhtmltest-helpers.el" "tests/temp-test.el"
 ;;;;;;  "util/ack.el" "util/appmenu-fold.el" "util/backtr.el" "util/css-simple-completion.el"
-;;;;;;  "util/custsets.el" "util/ecb-batch-compile.el" "util/fupd.el"
-;;;;;;  "util/idn.el" "util/mumamo-trace.el" "util/new-key-seq-widget.el"
+;;;;;;  "util/custsets.el" "util/ecb-batch-compile.el" "util/fun.el"
+;;;;;;  "util/fupd.el" "util/idn.el" "util/mumamo-trace.el" "util/new-key-seq-widget.el"
 ;;;;;;  "util/org-odt.el" "util/org-panel.el" "util/pipm.el" "util/powershell-mode.el"
 ;;;;;;  "util/rxi.el" "util/tipframe.el" "util/umbrain.el" "util/win-alg.el"
-;;;;;;  "web-autoload.el") (20239 692 495000))
+;;;;;;  "web-autoload.el") (20248 6414 627000))
 
 ;;;***
 
