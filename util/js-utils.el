@@ -57,6 +57,7 @@ For information about plovr see URL `http://plovr.com/'."
   :group 'js-utils)
 
 (defsubst jsut-plovr-file (js-file) (concat js-file ".plovr.js"))
+(defsubst jsut-plovr-src-file (plovr-file) (replace-regexp-in-string "\.plovr\.js$" "" plovr-file))
 
 ;;;###autoload
 (defun jsut-plovr-dev-info (plovr-file)
@@ -129,6 +130,9 @@ For information about plovr see URL `http://plovr.com/'."
         (with-current-buffer buf
           (insert plovr-conf))))))
 
+(defvar jsut-plovr-sentinel nil)
+(defvar jsut-plovr-buf nil)
+
 ;;;###autoload
 (defun jsut-plovr-compile (js-file)
   "Compile JS-FILE with plovr/closure compiler."
@@ -145,16 +149,99 @@ For information about plovr see URL `http://plovr.com/'."
               (message "Can't compile without this file")
             (message "Creating stub plovr config file")
             (jsut-plovr-edit-conf js-file))
-        (let ((compile-command (format cmd-template
+        (let ((plovr-buf (find-file-noselect plovr-file))
+              (bad-msg nil)
+              (compile-command (format cmd-template
                                        (shell-quote-argument
                                         (convert-standard-filename jsut-plovr-jar-file))
                                        (shell-quote-argument
                                         (convert-standard-filename
                                          (file-relative-name plovr-file))))))
-          (message "cmd=%s" compile-command)
-          (call-interactively 'compile))))))
+          (with-current-buffer plovr-buf
+            (let ((here (point)))
+              (save-restriction
+                (widen)
+                (goto-char (point-min))
+                (if (not (re-search-forward "^\s*['\"]output-file['\"]\s*:\s*['\"]\\(.*?\\)['\"]" nil t))
+                    (setq bad-msg (format "Can't find output-file in %s" plovr-file))
+                  (let* ((output (match-string 1))
+                         (outdir (file-name-directory output))
+                         (outexp (expand-file-name outdir))
+                         )
+                    (message "outexp=%S" outexp)
+                    (unless (file-directory-p outexp)
+                      (if (yes-or-no-p (format "Output dir %S does not exist. Create it? " outexp))
+                          (mkdir outdir t)
+                        (setq bad-msg "Can't compile")))))
+              (goto-char here))))
+          (if bad-msg
+              (message "%s" bad-msg)
+            (message "cmd=%s" compile-command)
+            (let* ((buf (call-interactively 'compile))
+                   (proc (when buf (get-buffer-process buf))))
+              (message "buf=%S" buf)
+              (when buf
+                (with-current-buffer buf
+                  (set (make-local-variable 'jsut-plovr-buf) plovr-buf)
+                  (put 'jsut-plovr-buf 'permanent-local t)
+                  (when proc
+                    (let ((sent (process-sentinel proc)))
+                      (set (make-local-variable 'jsut-plovr-sentinel) sent)
+                      (put 'jsut-plovr-sentinel 'permanent-local t)
+                      (set-process-sentinel proc 'jsut-plovr-compile-sentinel))))
+              ))))))))
 
+(defun jsut-plovr-compile-sentinel (process event)
+  (with-current-buffer (process-buffer process)
+    (message "%S: %S, %S" event jsut-plovr-buf jsut-plovr-sentinel)
+    (funcall jsut-plovr-sentinel process event)
+    (jsut-plovr-copy-more-to-output jsut-plovr-buf (current-buffer))
+    ))
 
+(defun jsut-plovr-copy-more-to-output (plovr-buf proc-buf)
+  (interactive (list (current-buffer) nil))
+  (with-current-buffer plovr-buf
+    (save-restriction
+      (widen)
+      (goto-char (point-min))
+      (if (not (re-search-forward "^\s*['\"]output-file['\"]\s*:\s*['\"]\\(.*?\\)['\"]" nil t))
+          (error "Can't find output-file in %s" plovr-buf)
+        (let* ((output-file (match-string 1))
+               (output-buf (find-buffer-visiting output-file))
+               )
+          (when output-buf (kill-buffer output-buf))
+          (setq output-buf (find-file-noselect output-file))
+          (with-current-buffer output-buf (revert-buffer t t t))
+          (goto-char (point-min))
+          (while (re-search-forward "^\s*//\s+Add\.\\(.*?\\)\s*:\s*\"\\(.*?\\)\"" nil t)
+            (let* ((w (match-string-no-properties 1))
+                   (where (cond ((string= w "Last") 'last)
+                                ((string= w "First") 'first)))
+                   (input-file (match-string-no-properties 2))
+                   (input-full (expand-file-name input-file)))
+              (if (not where)
+                  (message "Add %S not recognized" w)
+                (message "Adding to output %s: %S" w input-file)
+                (when proc-buf
+                  (with-current-buffer proc-buf
+                    (let ((inhibit-read-only t))
+                      (insert
+                       (format "\nAdding to output %s: %S" w input-file)))))
+                (with-current-buffer output-buf
+                  (widen)
+                  (if (eq where 'last)
+                      (progn
+                        (goto-char (point-max))
+                        (insert "\n\n"))
+                    (goto-char (point-min))
+                    (insert "\n\n")
+                    (goto-char (point-min)))
+                  (insert-file-contents input-full)))))
+          (with-current-buffer output-buf (basic-save-buffer))
+          (with-current-buffer proc-buf
+            (let ((inhibit-read-only t))
+              (insert "\nDone adding to output.")))
+          )))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -191,6 +278,59 @@ source.  This may include comments and new line characters."
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; jQuery bookmarklets
+
+;;;###autoload
+(defun jsut-jquery-include-it (buffer)
+  ;; jqpath : "https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js",
+  (interactive (list (current-buffer)))
+  (let* ((buf-file (buffer-file-name buffer))
+         (plovr-file (if (string-match-p "\.plovr.js$" buf-file)
+                         buf-file
+                         (jsut-plovr-file buf-file)))
+         (js-file (jsut-plovr-src-file plovr-file))
+         (js-buf (find-file-noselect js-file))
+         (plovr-buf (find-file-noselect plovr-file))
+         jqpath
+         output-file)
+    (with-current-buffer plovr-buf
+      (let ((here (point)))
+        (save-restriction
+          (widen)
+          (goto-char (point-min))
+          (if (not (re-search-forward "^\s*['\"]output-file['\"]\s*:\s*['\"]\\(.*?\\)['\"]" nil t))
+              (error (format "Can't find output-file in %s" plovr-file))
+            (setq output-file (match-string 1)))
+          (goto-char here))))
+    (with-current-buffer js-buf
+      (let ((here (point)))
+        (save-restriction
+          (widen)
+          (unless (> (buffer-size) 0)
+            (error "Output-file must be created first"))
+          (goto-char (point-min))
+          (if (not (re-search-forward "^\s+jqpath\s*:\s*\"\\(.*?\\)\"" nil t))
+              (error (format "Can't find jqpath in %s" js-file))
+            (setq jqpath (match-string 1)))
+          (goto-char here))))
+    (setq jqpath (replace-regexp-in-string "^https:" "http:" jqpath))
+    (let* ((buf-sts (web-vcs-url-retrieve-synch jqpath))
+           (jq-buf (car buf-sts)))
+      (if (not jq-buf)
+          (error "Could not fetch %S, status=%S" jqpath (cdr buf-sts))
+        (let ((old (find-buffer-visiting output-file))
+              (output-buf (find-file-noselect output-file))
+              )
+          (with-current-buffer output-buf
+            (let ((here (point-marker)))
+              (save-restriction
+                (widen)
+                (goto-char (point-min))
+                (insert (with-current-buffer jq-buf
+                          (buffer-substring-no-properties (point-min) (point-max)))
+                        " "))
+              (goto-char here))
+            (unless old (kill-buffer))
+            ))))))
 
 (defvar jsut-bookmarklet-template      (expand-file-name "etc/js/bm-base.js"      nxhtml-install-dir))
 (defvar jsut-bookmarklet-file-template (expand-file-name "etc/js/bm-base-file.js" nxhtml-install-dir))
@@ -290,16 +430,33 @@ For faster startup of jQuery bookmarklets.  \(Use plovr to
 include this file so the bookmarklet is all contained in one
 file.)"
   (interactive (list (current-buffer)))
-  (let ((css (with-current-buffer css-buffer
-               (buffer-substring-no-properties (point-min) (point-max))))
-        (js-buf (get-buffer-create "*jsut-css-to-js Result*")))
+  (let* ((css (with-current-buffer css-buffer
+                (buffer-substring-no-properties (point-min) (point-max))))
+         (unique-default (concat (buffer-name css-buffer) " " (current-time-string)))
+         ;; (unique (read-string "Give it a unique id: " unique-default))
+         (unique unique-default)
+         (css-file (buffer-file-name css-buffer))
+         (js-file (when css-file (concat css-file ".js")))
+         js-buf)
+    (when (and js-file
+               (file-exists-p js-file))
+      (setq js-buf (find-file-noselect js-file))
+      (with-current-buffer js-buf
+        (revert-buffer t t t)
+        (when (> (buffer-size) 0)
+          (widen)
+          (display-buffer js-buf)
+          (unless (yes-or-no-p (format "Replace current %S? " js-file))
+            (setq js-buf nil)))))
+    (unless js-buf (setq js-buf (get-buffer-create "*jsut-css-to-js Result*")))
     (with-current-buffer js-buf
       (widen)
       (erase-buffer)
       (insert (replace-regexp-in-string "\"" "" css))
       (goto-char (point-min))
       (insert "function addMyCss() {\n"
-              "jQuery('head')\n.append('<style type=\"text/css\">'\n")
+              "if (jQuery('head').find('style[title=\"" unique "\"]').length == 0)\n"
+              "jQuery('head')\n.append('<style title=\"" unique "\" type=\"text/css\">'\n")
       (while (not (eobp))
         (insert "+\"")
         (goto-char (point-at-eol))
@@ -308,7 +465,8 @@ file.)"
       (insert "+\"</style>\"\n"
               ");\n"
               "}\n")
-      (js-mode))
+      (js-mode)
+      (when (buffer-file-name) (basic-save-buffer)))
     (display-buffer js-buf)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

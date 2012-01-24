@@ -1,24 +1,12 @@
 /**
  * @license
- * jQuery Bookmarklet - version 1.1
- * Originally written by: Brett Barros
- * With modifications by: Paul Irish
- * Modified again by: Lennart Borgman
- *   - Tried to avoid clobbering name space.
- *   - Avoid loading jQuery if already loaded.
- *   - Do not use $(), use jQuery() instead since this will be run in an unknown environment.
+ * jQuery Bookmarklet FrameWork - version 1.0
+ * Originally idea by Brett Barros. Nothing left of that code, however.
  *
- * If you use this script, please link back to the source.
- *
- * Copyright (c) 2010 Latent Motion (http://latentmotion.com/how-to-create-a-jquery-bookmarklet/)
  * Copyright (c) 2011 Lennart Borgman.
- *      Changed most of it, but kept the basic ideas.
  *
  * Released under the Creative Commons Attribution 3.0 Unported License,
  * as defined here: http://creativecommons.org/licenses/by/3.0/
- *
- * For a description of this particular bookmarklet see the .html-file
- * with the same name as this .js-file.
  */
 
 
@@ -89,8 +77,8 @@
     ///   - Define as many variables as you like.
     /// (But be aware of "shadowing" of names.)
 
-    var myNamespace = 'findword72789'; // For this bookmarklet, same as in .js file!
-    // myURL='https://dl.dropbox.com/u/848981/it/cw/cw-cld.js';
+    var myNamespace = 'YourNameSpaceCHANGEthis'; // For this bookmarklet, same as in .js file!
+    // myURL='https://YourURL'; // Enter your URL for this compiled file here!
 
     var myOptions = {
         // Note that you need full path names to files here!
@@ -106,7 +94,7 @@
         jquery : "1.7.1" // Min jQuery version number.
     };
 
-    var myArg;
+    var myArgs;
     function myBookmarklet() {
         // Enter you code for the bookmarklet here! This function is
         // ran after all .css and .js files has been loaded (inclusive
