@@ -403,8 +403,7 @@
         (list 'menu-item "Resize Windows"
               'resize-windows))
 
-      (define-key tools-map [nxhtml-js-separator]
-        (list 'menu-item "--" nil))
+      (define-key tools-map [nxhtml-js-separator] (list 'menu-item "--" nil))
 
       (let ((js-map (make-sparse-keymap)))
         (define-key tools-map [nxhtml-js-map]
@@ -416,19 +415,22 @@
           (define-key bm-map [nxhtml-css-to-jquery]
             (list 'menu-item "Convert CSS to jQuery Code"
                   'jsut-jquery-css-to-js
-                  :enable '(derived-mode-p 'css-mode)))
+                  :enable '(derived-mode-p 'css-mode 'js-mode 'js2-mode)))
+          (define-key bm-map [nxhtml-js--bm-css-separator] (list 'menu-item "--" nil))
+          (define-key bm-map [nxhtml-js-bookmarkletify]
+            (list 'menu-item "Bookmarkletify js Code"
+                  'jsut-bookmarkletify
+                  :enable '(nxhtml-js-buffer)))
+          (define-key bm-map [nxhtml-jquery-separator] (list 'menu-item "--" nil))
           (define-key bm-map [nxhtml-js-mk-bookmarklet]
             (list 'menu-item "Make Bookmarklet JavaScript Template"
                   'jsut-jquery-mk-bookmarklet
                   :enable '(nxhtml-js-buffer)))
           (define-key bm-map [nxhtml-js-create-bookmarklet]
             (list 'menu-item "Create jQuery Bookmarklet JavaScript File Template"
-                  'jsut-jquery-create-bookmarklet-file))
-          (define-key bm-map [nxhtml-jquery-separator] (list 'menu-item "--" nil))
-          (define-key bm-map [nxhtml-js-bookmarkletify]
-            (list 'menu-item "Bookmarkletify js Code"
-                  'jsut-bookmarkletify
-                  :enable '(nxhtml-js-buffer))))
+                  'jsut-jquery-create-bookmarklet-file
+                  ))
+          )
         ;;;;;;;;;;
         (define-key js-map [nxhtml-bm-separator] (list 'menu-item "--" nil))
         (define-key js-map [nxhtml-plovr-dev-info]

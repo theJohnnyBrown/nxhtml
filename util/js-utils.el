@@ -95,16 +95,19 @@ For information about plovr see URL `http://plovr.com/'."
 
 ;;;###autoload
 (defun jsut-plovr-edit-conf (js-file)
-  "Edit plovr config file for JS-FILE."
+  "Switch between the plovr config file and the js file.
+JS-FILE is the one of those and default to current buffer file."
   (interactive (list (buffer-file-name)))
   (let* ((js-file-is-plovr (string-match-p "\.plovr.js$" js-file))
          (plovr-file (if js-file-is-plovr
                          js-file
                        (jsut-plovr-file js-file)))
          (buf (find-file plovr-file)))
-    (when (and (not js-file-is-plovr)
-               (= 0 (buffer-size buf)))
-      (let* ((plovr-template "
+    (if js-file-is-plovr
+        (let ((real-js-file (replace-regexp-in-string "\.plovr.js$" "" js-file)))
+          (find-file real-js-file))
+      (when (= 0 (buffer-size buf))
+        (let* ((plovr-template "
 // See http://www.plovr.com/options.html
 {
     \"id\": %S,
@@ -114,21 +117,23 @@ For information about plovr see URL `http://plovr.com/'."
     \"paths\": \".\",
     \"externs\": [
         %S,
+        \"YOUR-PATH-TO/jquery-externs-1.7.js\"
     ],
     \"custom-externs-only\": false,
     \"mode\":\"advanced\",
+    // \"mode\":\"whitespace\",
     \"output-file\": %S,
     \"output-wrapper\": \"/* Copyright 2011 YOUR NAME */ (function(){%%output%%})();\",
     \"output-charset\": \"UTF-8\"
 }")
-             (id (file-name-sans-extension (file-name-nondirectory js-file)))
-             (inp (file-name-nondirectory js-file))
-             (ext (concat (file-name-nondirectory (file-name-sans-extension js-file)) "-externs.js"))
-             (out (concat (file-name-nondirectory (file-name-sans-extension js-file)) "-cld.js"))
-             (plovr-conf (format plovr-template id inp ext out))
-             (buf (find-file plovr-file)))
-        (with-current-buffer buf
-          (insert plovr-conf))))))
+               (id (file-name-sans-extension (file-name-nondirectory js-file)))
+               (inp (file-name-nondirectory js-file))
+               (ext (concat (file-name-nondirectory (file-name-sans-extension js-file)) "-externs.js"))
+               (out (concat (file-name-nondirectory (file-name-sans-extension js-file)) "-cld.js"))
+               (plovr-conf (format plovr-template id inp ext out))
+               (buf (find-file plovr-file)))
+          (with-current-buffer buf
+            (insert plovr-conf)))))))
 
 (defvar jsut-plovr-sentinel nil)
 (defvar jsut-plovr-buf nil)
@@ -157,23 +162,16 @@ For information about plovr see URL `http://plovr.com/'."
                                        (shell-quote-argument
                                         (convert-standard-filename
                                          (file-relative-name plovr-file))))))
-          (with-current-buffer plovr-buf
-            (let ((here (point)))
-              (save-restriction
-                (widen)
-                (goto-char (point-min))
-                (if (not (re-search-forward "^\s*['\"]output-file['\"]\s*:\s*['\"]\\(.*?\\)['\"]" nil t))
-                    (setq bad-msg (format "Can't find output-file in %s" plovr-file))
-                  (let* ((output (match-string 1))
-                         (outdir (file-name-directory output))
-                         (outexp (expand-file-name outdir))
-                         )
-                    (message "outexp=%S" outexp)
-                    (unless (file-directory-p outexp)
-                      (if (yes-or-no-p (format "Output dir %S does not exist. Create it? " outexp))
-                          (mkdir outdir t)
-                        (setq bad-msg "Can't compile")))))
-              (goto-char here))))
+          (let* ((output-file (jsut-plovr-get-output-file plovr-buf))
+                 (output-full (expand-file-name output-file))
+                 (outdir (file-name-directory output-full))
+                 (outexp (expand-file-name outdir))
+                 )
+            (message "outexp=%S" outexp)
+            (unless (file-directory-p outexp)
+              (if (yes-or-no-p (format "Output dir %S does not exist. Create it? " outexp))
+                  (mkdir outdir t)
+                (setq bad-msg "Can't compile"))))
           (if bad-msg
               (message "%s" bad-msg)
             (message "cmd=%s" compile-command)
@@ -198,50 +196,66 @@ For information about plovr see URL `http://plovr.com/'."
     (jsut-plovr-copy-more-to-output jsut-plovr-buf (current-buffer))
     ))
 
+(defun jsut-plovr-get-output-file (plovr-buf)
+  "Find output-file in buffer PLOVR-BUF.
+Error if not found."
+  (with-current-buffer plovr-buf
+    (let ((here (point))
+          output-file)
+      (save-restriction
+        (widen)
+        (goto-char (point-min))
+        (if (not (re-search-forward "^\s*['\"]output-file['\"]\s*:\s*['\"]\\(.*?\\)['\"]" nil t))
+            (error "Can't find output-file in %s" plovr-buf)
+          (setq output-file (match-string 1))))
+      (goto-char here)
+      output-file)))
+
 (defun jsut-plovr-copy-more-to-output (plovr-buf proc-buf)
   (interactive (list (current-buffer) nil))
-  (with-current-buffer plovr-buf
-    (save-restriction
-      (widen)
-      (goto-char (point-min))
-      (if (not (re-search-forward "^\s*['\"]output-file['\"]\s*:\s*['\"]\\(.*?\\)['\"]" nil t))
-          (error "Can't find output-file in %s" plovr-buf)
-        (let* ((output-file (match-string 1))
-               (output-buf (find-buffer-visiting output-file))
-               )
-          (when output-buf (kill-buffer output-buf))
-          (setq output-buf (find-file-noselect output-file))
-          (with-current-buffer output-buf (revert-buffer t t t))
-          (goto-char (point-min))
-          (while (re-search-forward "^\s*//\s+Add\.\\(.*?\\)\s*:\s*\"\\(.*?\\)\"" nil t)
-            (let* ((w (match-string-no-properties 1))
-                   (where (cond ((string= w "Last") 'last)
-                                ((string= w "First") 'first)))
-                   (input-file (match-string-no-properties 2))
-                   (input-full (expand-file-name input-file)))
-              (if (not where)
-                  (message "Add %S not recognized" w)
-                (message "Adding to output %s: %S" w input-file)
-                (when proc-buf
-                  (with-current-buffer proc-buf
-                    (let ((inhibit-read-only t))
-                      (insert
-                       (format "\nAdding to output %s: %S" w input-file)))))
-                (with-current-buffer output-buf
-                  (widen)
-                  (if (eq where 'last)
-                      (progn
-                        (goto-char (point-max))
-                        (insert "\n\n"))
-                    (goto-char (point-min))
-                    (insert "\n\n")
-                    (goto-char (point-min)))
-                  (insert-file-contents input-full)))))
-          (with-current-buffer output-buf (basic-save-buffer))
+  (let* ((output-file (jsut-plovr-get-output-file plovr-buf))
+         (output-buf (find-buffer-visiting output-file))
+         add-files)
+    (when output-buf (kill-buffer output-buf))
+    (setq output-buf (find-file-noselect output-file))
+    ;; (with-current-buffer output-buf (revert-buffer t t t))
+    (with-current-buffer plovr-buf
+      (save-restriction
+        (widen)
+        (goto-char (point-min))
+        (while (re-search-forward "^\s*//\s+js-utils\.el\.Add\.\\(.*?\\)\s*:\s*\"\\(.*?\\)\"" nil t)
+          (let* ((w (match-string-no-properties 1))
+                 (where (cond ((string= w "Last") 'last)
+                              ((string= w "First") 'first)))
+                 (input-file (match-string-no-properties 2))
+                 (input-full (expand-file-name input-file)))
+            (if (not where)
+                (message "Add %S not recognized" w)
+              (setq add-files (cons (list where input-file input-full) add-files)))))))
+    (dolist (where-input add-files)
+      (let ((where      (nth 0 where-input))
+            (input-file (nth 1 where-input))
+            (input-full (nth 2 where-input)))
+        (message "Adding to output %s: %S" where input-file)
+        (when proc-buf
           (with-current-buffer proc-buf
             (let ((inhibit-read-only t))
-              (insert "\nDone adding to output.")))
-          )))))
+              (insert
+               (format "\nAdding to output %s: %S" where input-file)))))
+        (with-current-buffer output-buf
+          (widen)
+          (if (eq where 'last)
+              (progn
+                (goto-char (point-max))
+                (insert "\n\n"))
+            (goto-char (point-min))
+            (insert "\n\n")
+            (goto-char (point-min)))
+          (insert-file-contents input-full))))
+    (with-current-buffer output-buf (basic-save-buffer))
+    (with-current-buffer proc-buf
+      (let ((inhibit-read-only t))
+        (insert "\nDone adding to output.")))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -291,16 +305,7 @@ source.  This may include comments and new line characters."
          (js-buf (find-file-noselect js-file))
          (plovr-buf (find-file-noselect plovr-file))
          jqpath
-         output-file)
-    (with-current-buffer plovr-buf
-      (let ((here (point)))
-        (save-restriction
-          (widen)
-          (goto-char (point-min))
-          (if (not (re-search-forward "^\s*['\"]output-file['\"]\s*:\s*['\"]\\(.*?\\)['\"]" nil t))
-              (error (format "Can't find output-file in %s" plovr-file))
-            (setq output-file (match-string 1)))
-          (goto-char here))))
+         (output-file (jsut-plovr-get-output-file plovr-buf)))
     (with-current-buffer js-buf
       (let ((here (point)))
         (save-restriction
@@ -424,50 +429,150 @@ source code in the bookmarklet itself.)
         (message "Please save the buffer to the file you want with C-x C-w")))))
 
 ;;;###autoload
-(defun jsut-jquery-css-to-js (css-buffer)
-  "Convert CSS in CSS-BUFFER to jQuery code.
+(defun jsut-jquery-css-to-js ()
+  "Convert CSS code to jQuery code.
 For faster startup of jQuery bookmarklets.  \(Use plovr to
 include this file so the bookmarklet is all contained in one
-file.)"
-  (interactive (list (current-buffer)))
-  (let* ((css (with-current-buffer css-buffer
-                (buffer-substring-no-properties (point-min) (point-max))))
-         (unique-default (concat (buffer-name css-buffer) " " (current-time-string)))
-         ;; (unique (read-string "Give it a unique id: " unique-default))
-         (unique unique-default)
-         (css-file (buffer-file-name css-buffer))
-         (js-file (when css-file (concat css-file ".js")))
-         js-buf)
-    (when (and js-file
-               (file-exists-p js-file))
-      (setq js-buf (find-file-noselect js-file))
-      (with-current-buffer js-buf
-        (revert-buffer t t t)
-        (when (> (buffer-size) 0)
-          (widen)
-          (display-buffer js-buf)
-          (unless (yes-or-no-p (format "Replace current %S? " js-file))
-            (setq js-buf nil)))))
-    (unless js-buf (setq js-buf (get-buffer-create "*jsut-css-to-js Result*")))
+file.)
+
+- If in a CSS buffer this is the css code.
+- If in bookmarklet js or plovr file then look at the current
+  line.  In the bookmarklet js file it must be commented out.
+
+- If the CSS code is in a file buffer then the js output will be
+  in a file buffer.
+- The directory for that js output file buffer buffer will be the
+  same as for the plovr file.
+- The file name part will be CSS buffer file name + '.js'.
+
+Finally display js code."
+  (interactive)
+  (let* (css-buffer
+         output-js-file)
+    (cond
+     ;; In css buffer:
+     ((or (derived-mode-p 'css-mode)
+          (and (buffer-file-name)
+               (string= "css"
+                        (file-name-extension (buffer-file-name)))))
+      (setq css-buffer (current-buffer))
+      (setq output-js-file (concat (buffer-file-name) ".js")))
+     ;; In bookmark js file buffer or plovr buffer:
+     ((and
+       (or (derived-mode-p 'js-mode 'js2-mode)
+           (and (buffer-file-name)
+                (string= "js"
+                         (file-name-extension (buffer-file-name)))))
+       (let* ((file-is-plovr (string-match-p "\.plovr.js$" (buffer-file-name)))
+              (plovr-file (if file-is-plovr
+                         (buffer-file-name)
+                       (jsut-plovr-file (buffer-file-name))))
+              (plovr-buf (find-file-noselect plovr-file))
+              (output-file (jsut-plovr-get-output-file (find-file-noselect plovr-file)))
+              css-js-output-dir
+              css-file
+              css-file-name)
+         ;; Find in this buffer
+         ;;
+         ;; Fix-me: This works by chance in the js bookmarklet file
+         ;; since we actually have a web URL there.  However this will
+         ;; probably continue to work.
+         (save-restriction
+           (let ((here (point)))
+             (widen)
+             (goto-char (point-at-bol))
+             (if (not (looking-at
+                       (if file-is-plovr
+                           "\s*['\"]\\([^'\"]*\\)['\"]"
+                         "\s*//\s*['\"]\\([^'\"]*\\)['\"]"
+                         )))
+                 (error "No css file here (must be commented out in bookmarklet file")
+               (let ((file (match-string-no-properties 1)))
+                 (when file-is-plovr
+                   (unless (string= (file-name-extension file) "js")
+                     (error "Extension not .js in plovr file"))
+                   (setq file (file-name-sans-extension file)))
+                 (setq css-file-name (file-name-nondirectory file))))
+             (goto-char here)))
+         ;; Find in plovr buffer
+         (with-current-buffer plovr-buf
+           (let ((here (point)))
+             (save-restriction
+               (widen)
+               (goto-char (point-min))
+               (if (not (re-search-forward (concat "^.*\\(?:\"\\|/\\)"
+                                                   (regexp-quote css-file-name)
+                                                   ".js")
+                                           nil t))
+                   (error "Can't find %S in plovr file" css-file-name)
+                 (goto-char (point-at-bol))
+                 (when (looking-at "\s*['\"]\\([^'\"]*\\)['\"]")
+                   (let ((file (match-string-no-properties 1)))
+                     (setq css-file (file-name-sans-extension
+                                     (expand-file-name file
+                                                       (file-name-directory output-file))))
+                     (setq css-js-output-dir
+                           (file-name-directory
+                            (expand-file-name file))))))
+               (goto-char here))))
+         (unless (file-exists-p css-file) (error "Can't find file %S" css-file))
+         (setq css-buffer (find-file-noselect css-file))
+         (setq output-js-file (expand-file-name (concat css-file-name ".js")
+                                                css-js-output-dir))
+         )))
+     ;; Don't know
+     (t (error "Not in css-buffer or on css file pointer in bookmarklet js/plovr file")))
+    ;; end cond
+    (pop-to-buffer 
+     (jsut-jquery-css-to-js-1 css-buffer output-js-file))))
+    
+
+(defun jsut-jquery-css-to-js-1 (css-buffer output-js-file)
+  (let ((css (with-current-buffer css-buffer
+               (buffer-substring-no-properties (point-min) (point-max))))
+        (js-buf (if output-js-file
+                    (find-file-noselect output-js-file)
+                  (get-buffer-create
+                   (format "*jQuery code for buffer %S*" (buffer-name css-buffer)))))
+        (unique (concat (buffer-name css-buffer) " " (current-time-string))))
     (with-current-buffer js-buf
+      ;; (when output-js-file (revert-buffer t t t))
       (widen)
       (erase-buffer)
-      (insert (replace-regexp-in-string "\"" "" css))
-      (goto-char (point-min))
-      (insert "function addMyCss() {\n"
-              "if (jQuery('head').find('style[title=\"" unique "\"]').length == 0)\n"
-              "jQuery('head')\n.append('<style title=\"" unique "\" type=\"text/css\">'\n")
-      (while (not (eobp))
-        (insert "+\"")
-        (goto-char (point-at-eol))
-        (insert "\\n\"")
-        (forward-line))
-      (insert "+\"</style>\"\n"
-              ");\n"
-              "}\n")
-      (js-mode)
-      (when (buffer-file-name) (basic-save-buffer)))
-    (display-buffer js-buf)))
+      (insert (replace-regexp-in-string
+               "\""
+               (concat "\\" "\"")
+               (replace-regexp-in-string "/\\*\\(?:.\\|\n\\)*?\\*/"
+                                         ""
+                                         css)
+               t t))
+      ;; (display-buffer (current-buffer)) (error "stop")
+      (let* ((fun-name (if (not (buffer-file-name))
+                           "addMyCss"
+                         (concat "addCss_"
+                                 (replace-regexp-in-string "[\\.()$+-]" "_"
+                                                           (file-name-nondirectory (buffer-file-name))))))
+             (header 
+              (concat "// Call this in the js bookmarklet file:\n"
+                      "function " fun-name "() {\n"
+                      "if (jQuery('head').find('style[title=\"" unique "\"]').length == 0)\n"
+                      ;; Fix-me: How do I say utf8 here?
+                      "jQuery('head')\n.append('<style title=\"" unique "\" type=\"text/css\">'\n"))
+             (footer
+              (concat "+\"</style>\"\n"
+                      ");\n"
+                      "}\n")))
+        (goto-char (point-min))
+        (insert header)
+        (while (not (eobp))
+          (insert "+\"")
+          (goto-char (point-at-eol))
+          (insert "\\n\"")
+          (forward-line))
+        (insert footer))
+      (unless (buffer-file-name) (js-mode))
+      js-buf)))
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; js-utils.el ends here
